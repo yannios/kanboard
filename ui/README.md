@@ -62,6 +62,25 @@ izgleda isto kao i prije.
   najviše 4 API poziva u letu. Bez toga paralelni pozivi vraćaju prazan odgovor (HTTP 500).
 - Pri brisanju datuma početka pošalji **prazan string**, ne `0` — Kanboard `0` odbija.
 
+## Upravljanje projektima (bez Kanboardovog sučelja)
+
+- **＋ Novi projekt** u sidebaru — stvara projekt (Kanboard mu automatski doda
+  četiri standardne kolone).
+- **⚙ uz naziv projekta** — postavke u pet kartica:
+  - *Kolone*: dodaj, preimenuj, pomakni lijevo/desno, obriši
+  - *Kategorije*: dodaj, preimenuj, obriši
+  - *Staze* (swimlanes): dodaj, preimenuj, obriši
+  - *Članovi*: dodaj korisnika s ulogom (Voditelj / Član / Gledatelj), promijeni
+    ulogu, ukloni s projekta
+  - *Općenito*: preimenovanje projekta i brisanje projekta sa zadacima
+
+Sve ide preko Kanboardovog JSON-RPC-a (`createProject`, `addColumn`,
+`changeColumnPosition`, `createCategory`, `addSwimlane`, `addProjectUser`, …), pa
+vrijede ista prava kao u Kanboardu.
+
+> Ostaje u Kanboardu: kreiranje **korisnika** (app razina), plugin/i, sigurnosne
+> kopije, nadogradnje i aplikacijske postavke.
+
 ## Prijava
 
 UI se prijavljuje **korisničkim imenom i lozinkom sa Kanboard računa** — dvije male

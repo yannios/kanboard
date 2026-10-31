@@ -445,6 +445,55 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .empty { padding: 2.5rem .25rem; color: var(--text-3); font-size: .9rem; }
 
 /* ============================================================
+   PROJECT SETTINGS MODAL
+   ============================================================ */
+
+.modal.wide { width: min(38rem, calc(100vw - 2rem)); }
+.modal-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .6rem; }
+.modal-head h3 { margin: 0; }
+.modal-head .icon-btn { margin-left: auto; }
+
+.pm-tabs { display: flex; gap: .2rem; border-bottom: 1px solid var(--border); margin-bottom: .7rem; }
+.pm-tab {
+    padding: .4rem .6rem; font-size: .82rem; color: var(--text-3);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.pm-tab:hover { color: var(--text); }
+.pm-tab.is-active { color: var(--text); border-bottom-color: var(--accent); }
+
+.pm-body { max-height: 55vh; overflow: auto; }
+
+.pm-row {
+    display: flex; align-items: center; gap: .45rem;
+    padding: .35rem .1rem; border-bottom: 1px solid var(--border); font-size: .86rem;
+}
+.pm-row:last-child { border-bottom: 0; }
+.pm-row .pm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-row .pm-meta { font: 400 .72rem/1 var(--mono); color: var(--text-3); }
+.pm-row .pm-idx { flex: 0 0 1.2rem; text-align: center; font: 400 .72rem/1 var(--mono); color: var(--text-3); }
+
+.pm-add { display: flex; gap: .35rem; margin-top: .6rem; }
+.pm-add input, .pm-add select {
+    flex: 1; min-width: 0; height: 2rem; padding: 0 .5rem;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-sm); color: var(--text); font-size: .82rem;
+}
+.pm-add input:focus, .pm-add select:focus { outline: none; border-color: var(--accent); }
+.pm-add .btn { flex: 0 0 auto; }
+.pm-note { font-size: .76rem; color: var(--text-3); margin: .5rem 0 0; }
+.pm-inline {
+    width: 100%; height: 1.7rem; padding: 0 .4rem;
+    background: var(--surface-3); border: 1px solid var(--accent);
+    border-radius: var(--r-sm); color: var(--text); font: inherit;
+}
+.pm-role {
+    height: 1.7rem; padding: 0 .3rem; font-size: .76rem;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-sm); color: var(--text-2);
+}
+.pm-danger { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--border); }
+
+/* ============================================================
    TASK DRAWER: tags, time, comment editing
    ============================================================ */
 

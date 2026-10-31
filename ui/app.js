@@ -907,6 +907,290 @@
         });
     }
 
+    /* ---------------- project management ---------------- */
+    var pmTab = 'cols';
+    var PM_ROLES = { 'project-manager': 'Voditelj', 'project-member': 'Član', 'project-viewer': 'Gledatelj' };
+
+    function openNewProject() {
+        $('npName').value = '';
+        $('npError').hidden = true;
+        $('newProjWrap').hidden = false;
+        setTimeout(function () { $('npName').focus(); }, 60);
+    }
+
+    function createProject() {
+        var name = $('npName').value.trim();
+        if (!name) { $('npError').textContent = 'Upiši naziv projekta.'; $('npError').hidden = false; return; }
+
+        $('newProjSave').disabled = true;
+        api('createProject', { name: name }).then(function (id) {
+            $('newProjSave').disabled = false;
+            $('newProjWrap').hidden = true;
+            if (!id) throw new Error('Projekt nije stvoren.');
+            localStorage.setItem('kbui.project', id);
+            toast('Projekt „' + name + '" stvoren');
+            return loadAll();
+        }).catch(function (e) {
+            $('newProjSave').disabled = false;
+            $('npError').textContent = (e && e.message) || 'Greška';
+            $('npError').hidden = false;
+        });
+    }
+
+    function openProjectSettings() {
+        if (!state.project) return;
+        $('pmTitle').textContent = state.project.name;
+        $('projWrap').hidden = false;
+        setPmTab(pmTab);
+    }
+
+    function setPmTab(tab) {
+        pmTab = tab;
+        Array.prototype.forEach.call(document.querySelectorAll('.pm-tab'), function (b) {
+            b.classList.toggle('is-active', b.dataset.pm === tab);
+        });
+        renderPm();
+    }
+
+    function renderPm() {
+        var host = $('pmBody');
+        host.innerHTML = '<div class="pm-note">Učitavam…</div>';
+
+        if (pmTab === 'cols') {
+            api('getColumns', { project_id: state.project.id }).then(function (cols) {
+                state.pmCols = cols || [];
+                host.innerHTML = state.pmCols.map(function (c, i) {
+                    return '<div class="pm-row" data-col="' + c.id + '">' +
+                        '<span class="pm-idx">' + (i + 1) + '</span>' +
+                        '<span class="pm-name">' + esc(c.title) + '</span>' +
+                        '<span class="pm-meta">' + (c.nb_tasks || 0) + ' zad.</span>' +
+                        '<button class="icon-btn sm" data-act="colup" title="Pomakni lijevo"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+                        '<button class="icon-btn sm" data-act="coldown" title="Pomakni desno"' + (i === state.pmCols.length - 1 ? ' disabled' : '') + '>↓</button>' +
+                        '<button class="icon-btn sm" data-act="coledit" title="Preimenuj">✎</button>' +
+                        '<button class="icon-btn sm" data-act="coldel" title="Obriši kolonu">✕</button>' +
+                        '</div>';
+                }).join('') + '<div class="pm-add"><input id="pmColName" placeholder="nova kolona…"><button class="btn primary" data-act="coladd">Dodaj</button></div>';
+            }).catch(pmErr);
+            return;
+        }
+
+        if (pmTab === 'cats') {
+            api('getAllCategories', { project_id: state.project.id }).then(function (cats) {
+                host.innerHTML = ((cats || []).map(function (c) {
+                    return '<div class="pm-row" data-cat="' + c.id + '">' +
+                        '<span class="dot" style="background:' + (COLOR_HEX[c.color_id] || 'var(--text-3)') + '"></span>' +
+                        '<span class="pm-name">' + esc(c.name) + '</span>' +
+                        '<button class="icon-btn sm" data-act="catedit" title="Preimenuj">✎</button>' +
+                        '<button class="icon-btn sm" data-act="catdel" title="Obriši">✕</button>' +
+                        '</div>';
+                }).join('') || '<div class="pm-note">Nema kategorija.</div>') +
+                '<div class="pm-add"><input id="pmCatName" placeholder="nova kategorija…"><button class="btn primary" data-act="catadd">Dodaj</button></div>';
+            }).catch(pmErr);
+            return;
+        }
+
+        if (pmTab === 'lanes') {
+            api('getAllSwimlanes', { project_id: state.project.id }).then(function (lanes) {
+                host.innerHTML = ((lanes || []).map(function (s) {
+                    return '<div class="pm-row" data-lane="' + s.id + '">' +
+                        '<span class="pm-name">' + esc(s.name) + '</span>' +
+                        '<button class="icon-btn sm" data-act="laneedit" title="Preimenuj">✎</button>' +
+                        '<button class="icon-btn sm" data-act="lanedel" title="Obriši">✕</button>' +
+                        '</div>';
+                }).join('') || '<div class="pm-note">Nema staza.</div>') +
+                '<div class="pm-add"><input id="pmLaneName" placeholder="nova staza…"><button class="btn primary" data-act="laneadd">Dodaj</button></div>';
+            }).catch(pmErr);
+            return;
+        }
+
+        if (pmTab === 'people') {
+            Promise.all([
+                api('getProjectUsers', { project_id: state.project.id }).catch(function () { return {}; }),
+                api('getAllUsers').catch(function () { return []; })
+            ]).then(function (res) {
+                var u = res[0] || {};
+                var members = Array.isArray(u) ? u : Object.keys(u).map(function (k) { return { id: Number(k), name: u[k] }; });
+                var all = res[1] || [];
+                var memberIds = members.map(function (m) { return Number(m.id); });
+                var free = all.filter(function (x) { return memberIds.indexOf(Number(x.id)) === -1; });
+
+                host.innerHTML = members.map(function (m) {
+                    return '<div class="pm-row" data-user="' + m.id + '">' +
+                        '<span class="assignee">' + initials(m.name) + '</span>' +
+                        '<span class="pm-name">' + esc(m.name) + '</span>' +
+                        '<select class="pm-role" data-act="role">' +
+                        Object.keys(PM_ROLES).map(function (r) {
+                            return '<option value="' + r + '">' + PM_ROLES[r] + '</option>';
+                        }).join('') +
+                        '</select>' +
+                        '<button class="icon-btn sm" data-act="userdel" title="Ukloni s projekta">✕</button>' +
+                        '</div>';
+                }).join('') +
+                (free.length
+                    ? '<div class="pm-add"><select id="pmUserId">' +
+                      free.map(function (x) { return '<option value="' + x.id + '">' + esc(x.username) + '</option>'; }).join('') +
+                      '</select><select id="pmUserRole">' +
+                      Object.keys(PM_ROLES).map(function (r) { return '<option value="' + r + '">' + PM_ROLES[r] + '</option>'; }).join('') +
+                      '</select><button class="btn primary" data-act="useradd">Dodaj</button></div>'
+                    : '<p class="pm-note">Svi korisnici su već na projektu. Nove korisnike praviš u Kanboardu (Korisnici).</p>');
+            }).catch(pmErr);
+            return;
+        }
+
+        // general
+        host.innerHTML = '<div class="pm-add"><input id="pmProjName" value="' + esc(state.project.name) + '">' +
+            '<button class="btn primary" data-act="projrename">Spremi</button></div>' +
+            '<p class="pm-note">Adresa projekta se ne mijenja; naziv da.</p>' +
+            '<div class="pm-danger"><button class="btn danger" data-act="projdel">Obriši projekt</button>' +
+            '<p class="pm-note">Briše projekt sa svim zadacima. Nema povratka.</p></div>';
+    }
+
+    function pmErr(e) {
+        $('pmBody').innerHTML = '<div class="pm-note">Greška: ' + esc((e && e.message) || 'nepoznato') + '</div>';
+    }
+
+    function pmInline(row, current, onSave) {
+        var name = row.querySelector('.pm-name');
+        if (!name) return;
+        name.innerHTML = '<input class="pm-inline" value="' + esc(current) + '">';
+        var inp = name.querySelector('input');
+        inp.focus();
+        inp.select();
+        var done = function (save) {
+            if (!save) { name.textContent = current; return; }
+            var v = inp.value.trim();
+            if (!v || v === current) { name.textContent = current; return; }
+            name.textContent = v;
+            onSave(v);
+        };
+        inp.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); done(true); }
+            if (e.key === 'Escape') { e.preventDefault(); done(false); }
+        });
+        inp.addEventListener('blur', function () { done(true); });
+    }
+
+    function pmAction(act, row) {
+        var pid = state.project.id;
+
+        if (act === 'coladd') {
+            var name = $('pmColName').value.trim();
+            if (!name) return;
+            api('addColumn', { project_id: pid, title: name }).then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+        if (act === 'colup' || act === 'coldown') {
+            var colId = Number(row.dataset.col);
+            var idx = state.pmCols.map(function (c) { return c.id; }).indexOf(colId);
+            var pos = act === 'colup' ? idx : idx + 2;   // API: 1-based
+            api('changeColumnPosition', { project_id: pid, column_id: colId, position: pos })
+                .then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+        if (act === 'coledit') {
+            pmInline(row, row.querySelector('.pm-name').textContent, function (v) {
+                api('updateColumn', { column_id: Number(row.dataset.col), title: v }).then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            });
+            return;
+        }
+        if (act === 'coldel') {
+            var col = row.querySelector('.pm-name').textContent;
+            if (!confirm('Obrisati kolonu „' + col + '"? Zadaci u njoj ostaju bez kolone.')) return;
+            api('removeColumn', { column_id: Number(row.dataset.col) }).then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+
+        if (act === 'catadd') {
+            var cn = $('pmCatName').value.trim();
+            if (!cn) return;
+            api('createCategory', { project_id: pid, name: cn }).then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+        if (act === 'catedit') {
+            pmInline(row, row.querySelector('.pm-name').textContent, function (v) {
+                api('updateCategory', { id: Number(row.dataset.cat), name: v }).then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            });
+            return;
+        }
+        if (act === 'catdel') {
+            if (!confirm('Obrisati kategoriju?')) return;
+            api('removeCategory', { category_id: Number(row.dataset.cat) }).then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+
+        if (act === 'laneadd') {
+            var ln = $('pmLaneName').value.trim();
+            if (!ln) return;
+            api('addSwimlane', { project_id: pid, name: ln }).then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+        if (act === 'laneedit') {
+            pmInline(row, row.querySelector('.pm-name').textContent, function (v) {
+                api('updateSwimlane', { project_id: pid, swimlane_id: Number(row.dataset.lane), name: v })
+                    .then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            });
+            return;
+        }
+        if (act === 'lanedel') {
+            if (!confirm('Obrisati stazu? Zadaci se premještaju u prvu stazu.')) return;
+            api('removeSwimlane', { project_id: pid, swimlane_id: Number(row.dataset.lane) })
+                .then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+
+        if (act === 'useradd') {
+            var uid = Number($('pmUserId').value);
+            var role = $('pmUserRole').value;
+            api('addProjectUser', { project_id: pid, user_id: uid, role: role })
+                .then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+        if (act === 'userdel') {
+            if (!confirm('Ukloniti korisnika s projekta?')) return;
+            api('removeProjectUser', { project_id: pid, user_id: Number(row.dataset.user) })
+                .then(function () { renderPm(); loadAll(); }).catch(pmErr);
+            return;
+        }
+        if (act === 'role') {
+            var sel = row.querySelector('.pm-role');
+            api('changeProjectUserRole', { project_id: pid, user_id: Number(row.dataset.user), role: sel.value })
+                .then(function () { toast('Uloga spremljena'); })
+                .catch(function () {
+                    // novije verzije nemaju tu metodu: ukloni pa dodaj s novom ulogom
+                    api('removeProjectUser', { project_id: pid, user_id: Number(row.dataset.user) })
+                        .then(function () {
+                            return api('addProjectUser', { project_id: pid, user_id: Number(row.dataset.user), role: sel.value });
+                        })
+                        .then(function () { toast('Uloga spremljena'); renderPm(); })
+                        .catch(pmErr);
+                });
+            return;
+        }
+
+        if (act === 'projrename') {
+            var nn = $('pmProjName').value.trim();
+            if (!nn || nn === state.project.name) return;
+            api('updateProject', { project_id: pid, name: nn }).then(function () {
+                state.project.name = nn;
+                $('projName').textContent = nn;
+                $('pmTitle').textContent = nn;
+                renderProjects();
+                toast('Naziv spremljen');
+            }).catch(pmErr);
+            return;
+        }
+        if (act === 'projdel') {
+            if (!confirm('Obrisati projekt „' + state.project.name + '" sa svim zadacima?')) return;
+            api('removeProject', { project_id: pid }).then(function () {
+                $('projWrap').hidden = true;
+                localStorage.removeItem('kbui.project');
+                toast('Projekt obrisan');
+                return loadAll();
+            }).catch(pmErr);
+            return;
+        }
+    }
+
     /* ---------------- tags ---------------- */
     function renderTags(obj) {
         state.tags = obj || {};
@@ -1217,8 +1501,40 @@
             var pid = Number(row.dataset.project);
             openInProject(pid, Number(row.dataset.task));
         });
-        $('addProjectHint').addEventListener('click', function () {
-            toast('Projekte kreiraš u Kanboardu — ovo sučelje ih samo prikazuje.');
+        // projekti: novi + postavke
+        $('newProjectBtn').addEventListener('click', function () { openNewProject(); });
+        $('newProjCancel').addEventListener('click', function () { $('newProjWrap').hidden = true; });
+        $('newProjScrim').addEventListener('click', function () { $('newProjWrap').hidden = true; });
+        $('newProjSave').addEventListener('click', createProject);
+        $('npName').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); createProject(); }
+        });
+        $('projSettingsBtn').addEventListener('click', openProjectSettings);
+        $('projClose').addEventListener('click', function () { $('projWrap').hidden = true; });
+        $('projScrim').addEventListener('click', function () { $('projWrap').hidden = true; });
+        $('pmTabs').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-pm]');
+            if (b) setPmTab(b.dataset.pm);
+        });
+        $('pmBody').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-act]');
+            if (!b) return;
+            var act = b.dataset.act;
+            if (act === 'coladd' || act === 'catadd' || act === 'laneadd') {
+                pmAction(act, b.closest('.pm-row') || b.closest('.pm-add'));
+                return;
+            }
+            pmAction(act, b.closest('.pm-row'));
+        });
+        $('pmBody').addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            var id = e.target.id;
+            if (id === 'pmColName') { e.preventDefault(); pmAction('coladd'); }
+            if (id === 'pmCatName') { e.preventDefault(); pmAction('catadd'); }
+            if (id === 'pmLaneName') { e.preventDefault(); pmAction('laneadd'); }
+        });
+        $('pmBody').addEventListener('change', function (e) {
+            if (e.target.dataset.act === 'role') pmAction('role', e.target.closest('.pm-row'));
         });
 
         // --- filtri ---

@@ -41,6 +41,7 @@
     <button class="nav-item" id="themeBtn"><span class="ni">◐</span> <span id="themeLabel">Svijetla tema</span></button>
     <button class="nav-item" id="authBtn"><span class="ni">⚙</span> Povezivanje</button>
     <button class="nav-item" id="logoutBtn"><span class="ni">⏻</span> Odjava</button>
+    <button class="nav-item" id="newProjectBtn"><span class="ni">＋</span> Novi projekt</button>
     <div class="ver">Kanboard API · v<span id="kbVer">?</span></div>
   </div>
 </aside>
@@ -54,7 +55,7 @@
     <div class="crumbs">
       <span class="proj-icon" id="projIcon">◻</span>
       <strong id="projName">—</strong>
-      <span class="chev">⌄</span>
+      <button class="icon-btn sm" id="projSettingsBtn" title="Postavke projekta">⚙</button>
     </div>
     <div class="topbar-actions">
       <input class="search" id="search" type="search" placeholder="Traži…">
@@ -192,6 +193,37 @@
 </div>
 
 <!-- ============ AUTH DIALOG ============ -->
+<div class="modal-wrap" id="newProjWrap" hidden>
+  <div class="scrim" id="newProjScrim"></div>
+  <div class="modal">
+    <h3>Novi projekt</h3>
+    <div class="field"><label>Naziv</label><input id="npName" autocomplete="off" placeholder="npr. Web shop"></div>
+    <p class="hint err" id="npError" hidden></p>
+    <div class="modal-actions">
+      <button class="btn" id="newProjCancel">Odustani</button>
+      <button class="btn primary" id="newProjSave">Napravi projekt</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="projWrap" hidden>
+  <div class="scrim" id="projScrim"></div>
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3 id="pmTitle">Postavke projekta</h3>
+      <button class="icon-btn sm" id="projClose" title="Zatvori">✕</button>
+    </div>
+    <div class="pm-tabs" id="pmTabs">
+      <button class="pm-tab is-active" data-pm="cols">Kolone</button>
+      <button class="pm-tab" data-pm="cats">Kategorije</button>
+      <button class="pm-tab" data-pm="lanes">Staze</button>
+      <button class="pm-tab" data-pm="people">Članovi</button>
+      <button class="pm-tab" data-pm="general">Općenito</button>
+    </div>
+    <div class="pm-body" id="pmBody"></div>
+  </div>
+</div>
+
 <div class="modal-wrap" id="authWrap" hidden>
   <div class="scrim" id="authScrim"></div>
   <div class="modal">
