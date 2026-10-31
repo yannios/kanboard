@@ -445,6 +445,27 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .empty { padding: 2.5rem .25rem; color: var(--text-3); font-size: .9rem; }
 
 /* ============================================================
+   HOME / DASHBOARD
+   ============================================================ */
+
+.dash { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
+.tile {
+    display: flex; flex-direction: column; gap: .15rem;
+    padding: .7rem .8rem; border: 1px solid var(--border); border-radius: var(--r);
+    background: var(--surface); cursor: pointer;
+}
+.tile:hover { border-color: var(--border-2); background: var(--surface-2); }
+.tile b { font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+.tile span { font-size: .76rem; color: var(--text-3); }
+.tile.is-danger b { color: var(--danger); }
+.tile.is-accent b { color: var(--accent); }
+
+@media (max-width: 860px) {
+    .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tile b { font-size: 1.25rem; }
+}
+
+/* ============================================================
    PROJECT SETTINGS MODAL
    ============================================================ */
 

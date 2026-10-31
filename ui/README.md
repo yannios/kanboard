@@ -62,6 +62,25 @@ izgleda isto kao i prije.
   najviše 4 API poziva u letu. Bez toga paralelni pozivi vraćaju prazan odgovor (HTTP 500).
 - Pri brisanju datuma početka pošalji **prazan string**, ne `0` — Kanboard `0` odbija.
 
+## Početna (pregled)
+
+**Početna** u sidebaru je pravi pregled: četiri pločice (moji zadaci, preko roka,
+ovaj tjedan, svi otvoreni) i popis koji spaja zaostale (`getMyOverdueTasks`) s
+tvojim zadacima; klik na pločicu vodi na odgovarajući prikaz, klik na red otvara
+zadatak u njegovom projektu.
+
+## Arhiva i javni link
+
+U ⚙ → *Općenito*: projekt možeš **arhivirati** (nestaje iz popisa, ništa se ne
+briše) i vratiti; arhivirani projekti ostaju u sidebaru s oznakom *arhiva*.
+Tu je i **javni link** — napomena: vodi na Kanboardovu ploču samo za čitanje u
+klasičnom izgledu, jer naš UI traži prijavu.
+
+## Datoteke projekta
+
+Kartica **Datoteke** u postavkama projekta: popis, dodavanje, preuzimanje i
+brisanje datoteka koje ne pripadaju pojedinom zadatku.
+
 ## Upravljanje projektima (bez Kanboardovog sučelja)
 
 - **＋ Novi projekt** u sidebaru — stvara projekt (Kanboard mu automatski doda

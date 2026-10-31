@@ -230,14 +230,15 @@
             $('kbVer').title = short;
             return api('getMe').then(function (me) { state.me = me; return me; }).catch(function () { return null; });
         }).then(function () {
-            // getAllProjects je samo za app-admina (403 za običnog korisnika);
-            // getMyProjects vraća projekte u kojima korisnik stvarno jest
-            return api('getMyProjects').catch(function () { return api('getAllProjects'); });
+            // getAllProjects (samo admin) uključuje i arhivirane projekte, pa se
+            // arhiva može vratiti; običan korisnik dobije samo svoje (getMyProjects)
+            return api('getAllProjects').catch(function () { return api('getMyProjects'); });
         }).then(function (ps) {
-            state.projects = (ps || []).filter(function (p) { return p.is_active; });
+            state.projects = (ps || []);   // arhivirani ostaju, označeni u popisu
             renderProjects();
             var saved = localStorage.getItem('kbui.project');
-            state.project = state.projects.filter(function (p) { return String(p.id) === saved; })[0] || state.projects[0];
+            state.project = state.projects.filter(function (p) { return String(p.id) === saved; })[0] ||
+                state.projects.filter(function (p) { return p.is_active; })[0] || state.projects[0];
             if (!state.project) throw new Error('nema aktivnih projekata');
             localStorage.setItem('kbui.project', state.project.id);
             $('projName').textContent = state.project.name;
@@ -296,6 +297,13 @@
         });
     }
 
+    function base64ToBytes(b64) {
+        var bin = atob(b64);
+        var out = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+    }
+
     function fmtSize(b) {
         if (!b) return '0 B';
         if (b < 1024) return b + ' B';
@@ -335,8 +343,9 @@
     function renderProjects() {
         $('projects').innerHTML = state.projects.map(function (p) {
             var on = state.project && p.id === state.project.id ? ' is-active' : '';
+            var arch = p.is_active ? '' : ' <span class="pm-meta">arhiva</span>';
             return '<button class="nav-item' + on + '" data-project="' + p.id + '">' +
-                '<span class="ni">◻</span> ' + esc(p.name) + '</button>';
+                '<span class="ni">◻</span> ' + esc(p.name) + arch + '</button>';
         }).join('') || '<div class="empty">Nema projekata</div>';
     }
 
@@ -972,6 +981,76 @@
         return true;
     }
 
+    /* ---------------- home / dashboard ---------------- */
+    function showHome(on) {
+        $('homeView').hidden = !on;
+        if (on) renderHome();
+    }
+
+    function renderHome() {
+        var me = state.me || {};
+        $('dashTiles').innerHTML = '<div class="tile"><b>…</b><span>učitavam</span></div>';
+
+        var projects = state.projects || [];
+        Promise.all([
+            api('getMyOverdueTasks').catch(function () { return []; }),
+            Promise.all(projects.map(function (p) {
+                return api('getAllTasks', { project_id: p.id, status_id: 1 }).then(function (ts) {
+                    return (ts || []).map(function (t) { return { t: t, p: p }; });
+                }).catch(function () { return []; });
+            }))
+        ]).then(function (res) {
+            var overdue = res[0] || [];
+            var all = [];
+            res[1].forEach(function (chunk) { all = all.concat(chunk); });
+
+            var mine = all.filter(function (x) { return Number(x.t.owner_id) === Number(me.id); });
+            var today = new Date(); today.setHours(0, 0, 0, 0);
+            var inWeek = new Date(today.getTime() + 7 * 86400000);
+
+            var dueWeek = all.filter(function (x) {
+                if (!x.t.date_due) return false;
+                var d = new Date(x.t.date_due * 1000);
+                return d >= today && d <= inWeek;
+            });
+
+            var tiles = [
+                { n: mine.length, label: 'moji zadaci', cls: '', go: 'mine' },
+                { n: overdue.length, label: 'preko roka', cls: overdue.length ? 'is-danger' : '', go: 'overdue' },
+                { n: dueWeek.length, label: 'ovaj tjedan', cls: 'is-accent', go: 'week' },
+                { n: all.length, label: 'svi otvoreni', cls: '', go: 'all' }
+            ];
+
+            $('dashTiles').innerHTML = tiles.map(function (t) {
+                return '<div class="tile ' + t.cls + '" data-go="' + t.go + '"><b>' + t.n + '</b><span>' + t.label + '</span></div>';
+            }).join('');
+
+            var rows = (overdue.length ? overdue.map(function (t) {
+                return { t: t, p: { id: t.project_id, name: t.project_name }, late: true };
+            }) : []).concat(mine.map(function (x) { return { t: x.t, p: x.p, late: false }; }));
+
+            var seen = {};
+            rows = rows.filter(function (r) {
+                if (seen[r.t.id]) return r.late;
+                seen[r.t.id] = 1;
+                return true;
+            });
+
+            $('dashList').innerHTML = rows.length ? rows.map(function (r) {
+                var due = dueInfo(r.t.date_due);
+                return '<div class="agg-row" data-task="' + r.t.id + '" data-project="' + r.p.id + '">' +
+                    '<span class="card-id">' + esc(ref(r.p) + '-' + r.t.id) + '</span>' +
+                    '<span class="agg-title">' + esc(r.t.title) + '</span>' +
+                    '<span class="agg-col">' + esc(r.p.name || '') + '</span>' +
+                    (due ? '<span class="chip mono' + (due.overdue ? ' due-over' : due.soon ? ' due-soon' : '') + '">' +
+                        ICO.due + ' ' + fmtDate(r.t.date_due) + '</span>' : '') +
+                    '</div>';
+            }).join('') : '<div class="empty">Nemaš dodijeljenih zadataka ni zaostalih. 👍</div>';
+        }).catch(function (e) {
+            $('dashList').innerHTML = '<div class="empty">Greška: ' + esc(e.message || e) + '</div>';
+        });
+    }
+
     /* ---------------- users (app admin) ---------------- */
     var userEditId = null;
 
@@ -1284,6 +1363,22 @@
             return;
         }
 
+        if (pmTab === 'files') {
+            api('getAllProjectFiles', { project_id: state.project.id }).then(function (fs) {
+                host.innerHTML = ((fs || []).map(function (f) {
+                    return '<div class="pm-row" data-file="' + f.id + '">' +
+                        '<span class="pm-name">' + esc(f.name) + '</span>' +
+                        '<span class="pm-meta">' + fmtSize(f.size) + '</span>' +
+                        '<button class="icon-btn sm" data-act="filedown" title="Preuzmi">⤓</button>' +
+                        '<button class="icon-btn sm" data-act="filedel" title="Obriši">✕</button>' +
+                        '</div>';
+                }).join('') || '<div class="pm-note">Nema datoteka na projektu.</div>') +
+                    '<div class="pm-add"><input type="file" id="pmFileInput">' +
+                    '<button class="btn primary" data-act="fileadd">Dodaj datoteku</button></div>';
+            }).catch(pmErr);
+            return;
+        }
+
         if (pmTab === 'people') {
             Promise.all([
                 api('getProjectUsers', { project_id: state.project.id }).catch(function () { return {}; }),
@@ -1327,11 +1422,34 @@
         }
 
         // general
-        host.innerHTML = '<div class="pm-add"><input id="pmProjName" value="' + esc(state.project.name) + '">' +
-            '<button class="btn primary" data-act="projrename">Spremi</button></div>' +
-            '<p class="pm-note">Adresa projekta se ne mijenja; naziv da.</p>' +
-            '<div class="pm-danger"><button class="btn danger" data-act="projdel">Obriši projekt</button>' +
-            '<p class="pm-note">Briše projekt sa svim zadacima. Nema povratka.</p></div>';
+        api('getProjectById', { project_id: state.project.id }).then(function (p) {
+            p = p || {};
+            host.innerHTML = '<div class="pm-add"><input id="pmProjName" value="' + esc(state.project.name) + '">' +
+                '<button class="btn primary" data-act="projrename">Spremi</button></div>' +
+                '<p class="pm-note">Adresa projekta se ne mijenja; naziv da.</p>' +
+
+                '<div class="pm-danger">' +
+                '<p class="pm-note">Status projekta: <b>' + (p.is_active ? 'aktivan' : 'u arhivi') + '</b></p>' +
+                (p.is_active
+                    ? '<button class="btn" data-act="projarchive">Arhiviraj projekt</button>'
+                    : '<button class="btn primary" data-act="projrestore">Vrati iz arhive</button>') +
+                '<p class="pm-note">Arhiva skriva projekt iz popisa, ali ne briše ništa.</p>' +
+                '</div>' +
+
+                '<div class="pm-danger">' +
+                '<p class="pm-note">Javni link: <b>' + (p.is_public ? 'uključen' : 'isključen') + '</b></p>' +
+                (p.is_public
+                    ? '<button class="btn" data-act="projpublicoff">Isključi javni pristup</button>' +
+                      '<p class="pm-note">Ploča je dostupna bez prijave na Kanboardovoj stranici ' +
+                      '<code>' + esc(location.origin) + '/board/' + esc(p.token || '') + '/' + p.id + '</code> ' +
+                      '(klasični izgled — naš UI traži prijavu).</p>'
+                    : '<button class="btn" data-act="projpublicon">Uključi javni pristup</button>' +
+                      '<p class="pm-note">Link vodi na Kanboardovu ploču samo za čitanje, u klasičnom izgledu.</p>') +
+                '</div>' +
+
+                '<div class="pm-danger"><button class="btn danger" data-act="projdel">Obriši projekt</button>' +
+                '<p class="pm-note">Briše projekt sa svim zadacima. Nema povratka.</p></div>';
+        }).catch(pmErr);
     }
 
     function pmErr(e) {
@@ -1464,6 +1582,62 @@
             return;
         }
 
+        if (act === 'projarchive' || act === 'projrestore') {
+            var on = act === 'projrestore';
+            api(on ? 'enableProject' : 'disableProject', { project_id: pid }).then(function () {
+                toast(on ? 'Projekt vraćen iz arhive' : 'Projekt arhiviran');
+                return loadAll();
+            }).then(function () { renderPm(); renderProjects(); }).catch(pmErr);
+            return;
+        }
+        if (act === 'projpublicon' || act === 'projpublicoff') {
+            var pub = act === 'projpublicon';
+            api(pub ? 'enableProjectPublicAccess' : 'disableProjectPublicAccess', { project_id: pid }).then(function () {
+                toast(pub ? 'Javni pristup uključen' : 'Javni pristup isključen');
+                renderPm();
+            }).catch(pmErr);
+            return;
+        }
+        if (act === 'fileadd') {
+            var input = $('pmFileInput');
+            if (!input || !input.files || !input.files[0]) { toast('Odaberi datoteku.'); return; }
+            var file = input.files[0];
+            var reader = new FileReader();
+            reader.onload = function () {
+                var b64 = String(reader.result).split(',')[1];
+                api('createProjectFile', {
+                    project_id: pid, filename: file.name, blob: b64,
+                    creator_id: (state.me && state.me.id) || 0
+                }).then(function () {
+                    toast('Datoteka dodana');
+                    renderPm();
+                }).catch(pmErr);
+            };
+            reader.readAsDataURL(file);
+            return;
+        }
+        if (act === 'filedown') {
+            var fid = Number(row.dataset.file);
+            api('downloadProjectFile', { project_id: pid, file_id: fid }).then(function (b64) {
+                if (!b64) throw new Error('Datoteka nije dostupna.');
+                var id = document.createElement('a');
+                var blob = new Blob([base64ToBytes(b64)], { type: 'application/octet-stream' });
+                id.href = URL.createObjectURL(blob);
+                id.download = (row.querySelector('.pm-name') || {}).textContent || 'datoteka';
+                document.body.appendChild(id);
+                id.click();
+                setTimeout(function () { URL.revokeObjectURL(id.href); id.remove(); }, 1000);
+            }).catch(pmErr);
+            return;
+        }
+        if (act === 'filedel') {
+            if (!confirm('Obrisati datoteku?')) return;
+            api('removeProjectFile', { project_id: pid, file_id: Number(row.dataset.file) }).then(function () {
+                toast('Datoteka obrisana');
+                renderPm();
+            }).catch(pmErr);
+            return;
+        }
         if (act === 'projrename') {
             var nn = $('pmProjName').value.trim();
             if (!nn || nn === state.project.name) return;
@@ -2006,6 +2180,14 @@
             document.querySelectorAll('.nav-item').forEach(function (x) { x.classList.remove('is-active'); });
             item.classList.add('is-active');
 
+            if (nav === 'home') {
+                showHome(true);
+                state.filter = { owner: 0, category: 0, priority: '', due: '' };
+                state.search = ''; $('search').value = '';
+                return;
+            }
+            showHome(false);
+
             if (nav === 'all') {
                 showAggregate(true);
                 applyFilters();
@@ -2052,6 +2234,7 @@
             var b = e.target.closest('.tab');
             if (!b) return;
             if (state.aggregate) showAggregate(false);
+            showHome(false);
             state.view = b.dataset.view;
             document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('is-active', x === b); });
             board.hidden = state.view !== 'board';
@@ -2332,6 +2515,28 @@
         });
         $('dDup').addEventListener('click', function () { moveOrCopy('copy'); });
         $('dMove').addEventListener('click', function () { moveOrCopy('move'); });
+        $('dashTiles').addEventListener('click', function (e) {
+            var t = e.target.closest('[data-go]');
+            if (!t) return;
+            var go = t.dataset.go;
+            if (go === 'overdue') { showHome(false); document.querySelector('.tab[data-view="backlog"]').click(); return; }
+            if (go === 'all') {
+                showHome(false);
+                document.querySelector('[data-nav="all"]').click();
+                return;
+            }
+            if (go === 'mine') {
+                showHome(false);
+                document.querySelector('[data-nav="mine"]').click();
+                return;
+            }
+            showHome(false);
+            document.querySelector('.tab[data-view="board"]').click();
+        });
+        $('dashList').addEventListener('click', function (e) {
+            var row = e.target.closest('[data-task]');
+            if (row) openInProject(Number(row.dataset.project), Number(row.dataset.task));
+        });
         $('overdueRefresh').addEventListener('click', renderOverdue);
         $('overdueToggle').addEventListener('click', function () {
             overdueMode = overdueMode === 'overdue' ? 'closed' : 'overdue';
