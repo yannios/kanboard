@@ -65,6 +65,40 @@ class ProcedureAuthorizationTest extends BaseProcedureTest
         $this->user->getProjectById($projectId);
     }
 
+    public function testProjectLookupDoesNotRevealInaccessibleProjects()
+    {
+        $projectId = $this->manager->createProject(array(
+            'name' => 'A hidden team project',
+            'identifier' => 'HIDDENPROJECT',
+            'email' => 'hidden-project@localhost',
+        ));
+        $this->assertNotFalse($projectId);
+
+        $this->assertNotFalse($this->app->getProjectByName('A hidden team project'));
+        $this->assertFalse($this->user->getProjectByName('A hidden team project'));
+        $this->assertFalse($this->user->getProjectByName('An inexisting project'));
+        $this->assertFalse($this->user->getProjectByIdentifier('HIDDENPROJECT'));
+        $this->assertFalse($this->user->getProjectByIdentifier('INEXISTINGPROJECT'));
+        $this->assertFalse($this->user->getProjectByEmail('hidden-project@localhost'));
+        $this->assertFalse($this->user->getProjectByEmail('inexisting-project@localhost'));
+    }
+
+    public function testProjectLookupGranted()
+    {
+        $projectId = $this->manager->createProject(array(
+            'name' => 'A visible team project',
+            'identifier' => 'VISIBLEPROJECT',
+            'email' => 'visible-project@localhost',
+            'owner_id' => $this->managerUserId,
+        ));
+        $this->assertNotFalse($projectId);
+        $this->assertTrue($this->manager->addProjectUser($projectId, $this->userUserId));
+
+        $this->assertEquals($projectId, $this->user->getProjectByName('A visible team project')['id']);
+        $this->assertEquals($projectId, $this->user->getProjectByIdentifier('VISIBLEPROJECT')['id']);
+        $this->assertEquals($projectId, $this->user->getProjectByEmail('visible-project@localhost')['id']);
+    }
+
     public function testProjectAuthorizationGranted()
     {
         $projectId = $this->manager->createProject(array(
@@ -76,6 +110,48 @@ class ProcedureAuthorizationTest extends BaseProcedureTest
 
         $this->assertTrue($this->manager->addProjectUser($projectId, $this->userUserId));
         $this->assertNotNull($this->user->getProjectById($projectId));
+    }
+
+    public function testProjectMetadataAuthorizationForbiddenBecauseNotProjectManager()
+    {
+        $projectId = $this->manager->createProject(array(
+            'name' => 'Test Project',
+            'owner_id' => $this->managerUserId,
+        ));
+
+        $this->assertNotFalse($projectId);
+        $this->assertTrue($this->manager->addProjectUser($projectId, $this->userUserId, 'project-member'));
+
+        $this->expectException('JsonRPC\Exception\AccessDeniedException');
+        $this->user->saveProjectMetadata($projectId, array('key' => 'value'));
+    }
+
+    public function testProjectMetadataRemovalAuthorizationForbiddenBecauseNotProjectManager()
+    {
+        $projectId = $this->manager->createProject(array(
+            'name' => 'Test Project',
+            'owner_id' => $this->managerUserId,
+        ));
+
+        $this->assertNotFalse($projectId);
+        $this->assertTrue($this->manager->saveProjectMetadata($projectId, array('key' => 'value')));
+        $this->assertTrue($this->manager->addProjectUser($projectId, $this->userUserId, 'project-member'));
+
+        $this->expectException('JsonRPC\Exception\AccessDeniedException');
+        $this->user->removeProjectMetadata($projectId, 'key');
+    }
+
+    public function testProjectMetadataAuthorizationGranted()
+    {
+        $projectId = $this->manager->createProject(array(
+            'name' => 'Test Project',
+            'owner_id' => $this->managerUserId,
+        ));
+
+        $this->assertNotFalse($projectId);
+        $this->assertTrue($this->manager->addProjectUser($projectId, $this->userUserId, 'project-manager'));
+        $this->assertTrue($this->user->saveProjectMetadata($projectId, array('key' => 'value')));
+        $this->assertTrue($this->user->removeProjectMetadata($projectId, 'key'));
     }
 
     public function testActionAuthorizationForbidden()
