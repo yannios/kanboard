@@ -41,7 +41,8 @@
         calMonth: null,
         filter: { owner: 0, category: 0, priority: '', due: '' },
         selected: {},
-        selecting: false
+        selecting: false,
+        collapsed: {}
     };
 
     /* ---------------- helpers ---------------- */
@@ -108,6 +109,7 @@
     /* ---------------- boot ---------------- */
     function boot() {
         applyTheme(localStorage.getItem(LS_THEME) || 'dark');
+        try { state.collapsed = JSON.parse(localStorage.getItem('kbui.collapsed') || '{}') || {}; } catch (e) { state.collapsed = {}; }
         applyFs(localStorage.getItem(LS_FS) || 'md');
         $('aEndpoint').textContent = new URL(ENDPOINT, location.href).href;
         wire();
@@ -394,27 +396,45 @@
         $('fSort').value = state.sort;
     }
 
-    function renderBoard() {
-        var cols = [];
-        state.board.forEach(function (sw) {
-            (sw.columns || []).forEach(function (c) { cols.push({ sw: sw.id, col: c }); });
-        });
-        if (!cols.length) { board.innerHTML = '<div class="col"><div class="empty">Projekt nema kolona.</div></div>'; return; }
-
-        var total = 0;
-        board.innerHTML = cols.map(function (x, i) {
-            var c = x.col;
+    function columnsHTML(sw, baseIndex) {
+        var html = '';
+        (sw.columns || []).forEach(function (c, i) {
             var tasks = sortTasks((c.tasks || []).filter(function (t) { return t.is_active && visible(t); }));
-            total += tasks.length;
+            sw.__count = (sw.__count || 0) + tasks.length;
             var over = c.task_limit && tasks.length > c.task_limit;
-            return '<section class="col" data-swimlane="' + x.sw + '" data-column="' + c.id + '">' +
+            html += '<section class="col" data-swimlane="' + sw.id + '" data-column="' + c.id + '">' +
                 '<header class="col-head">' +
-                '<span class="col-dot">' + (COL_ICON[i % COL_ICON.length]) + '</span>' +
+                '<span class="col-dot">' + (COL_ICON[(baseIndex + i) % COL_ICON.length]) + '</span>' +
                 '<span class="col-title">' + esc(c.title) + '</span>' +
-                '<span class="col-num"' + (over ? ' style="color:var(--danger)"' : '') + '>' + tasks.length + '</span>' +
+                '<span class="col-num"' + (over ? ' style="color:var(--danger)" title="Preko limita kolone"' : '') + '>' + tasks.length + '</span>' +
                 '<button class="icon-btn sm" data-add="' + c.id + '" title="Novi zadatak">+</button>' +
                 '</header>' +
                 '<div class="cards" data-drop="' + c.id + '">' + tasks.map(cardHTML).join('') + '</div>' +
+                '</section>';
+        });
+        return html;
+    }
+
+    function renderBoard() {
+        var lanes = (state.board || []).filter(function (sw) { return (sw.columns || []).length; });
+        if (!lanes.length) { board.innerHTML = '<div class="col"><div class="empty">Projekt nema kolona.</div></div>'; return; }
+
+        var multi = lanes.length > 1;
+        var total = 0;
+        board.innerHTML = lanes.map(function (sw, li) {
+            sw.__count = 0;
+            var coll = !!state.collapsed[sw.id];
+            var cols = columnsHTML(sw, li);
+            total += sw.__count;
+            return '<section class="swimlane' + (coll ? ' is-collapsed' : '') + '" data-swimlane="' + sw.id + '">' +
+                (multi
+                    ? '<header class="swimlane-head">' +
+                      '<button class="sw-btn" data-collapse="' + sw.id + '" title="Sklopi/raširi stazu">' + (coll ? '▸' : '▾') + '</button>' +
+                      '<span class="sw-name">' + esc(sw.name) + '</span>' +
+                      '<span class="col-num">' + sw.__count + '</span>' +
+                      '</header>'
+                    : '') +
+                '<div class="board-row">' + cols + '</div>' +
                 '</section>';
         }).join('');
         $('taskCount').textContent = total + (total === 1 ? ' zadatak' : ' zadataka');
@@ -763,6 +783,14 @@
 
         // board: open task, add task
         board.addEventListener('click', function (e) {
+            var col = e.target.closest('[data-collapse]');
+            if (col) {
+                var id = Number(col.dataset.collapse);
+                state.collapsed[id] = !state.collapsed[id];
+                try { localStorage.setItem('kbui.collapsed', JSON.stringify(state.collapsed)); } catch (err) {}
+                renderBoard();
+                return;
+            }
             var add = e.target.closest('[data-add]');
             if (add && !state.selecting) { newCardForm(add.dataset.add, add.closest('.col').querySelector('.cards')); return; }
             var card = e.target.closest('[data-task]');

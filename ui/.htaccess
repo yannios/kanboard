@@ -1,0 +1,15 @@
+# The UI is hand-edited during development, and its CSS/JS are referenced without
+# a version query, so a browser cache would keep serving stale copies after an
+# update. Revalidate every page load instead of caching blindly.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|css|js|woff2)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# Serve the app shell for the folder root, so /kanban/ui/ works like /kanban/ui/index.html
+DirectoryIndex index.html
+
+<IfModule mod_mime.c>
+    AddType font/woff2 .woff2
+</IfModule>

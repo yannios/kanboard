@@ -38,6 +38,13 @@ Sučelje je prilagođeno za telefon (testirano na 390 px širine):
 - detalj zadatka je preko cijelog ekrana, svojstva su iznad teksta
 - svi gumbi su najmanje ~38 px za prst
 
+## Swimlanes (staze)
+
+Ako projekt u Kanboardu ima **više staza**, ploča ih prikazuje kao odvojene
+redove s naslovom staze i brojem zadataka; svaka se može sklopiti (▾/▸, stanje
+se pamti). Kod projekta s jednom stazom (uobičajeno) nema zaglavlja — ploča
+izgleda isto kao i prije.
+
 ## Filtri i masovne akcije
 
 - **Filtri** (gumb u traci): dodijeljeno, kategorija, prioritet, rok

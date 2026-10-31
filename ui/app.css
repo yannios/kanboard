@@ -234,12 +234,26 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 
 /* ---------- board ---------- */
 .board {
-    flex: 1; display: flex; gap: .9rem;
+    flex: 1;
     padding: .9rem 1rem 1.5rem;
     overflow: auto;
-    align-items: flex-start;
     -webkit-overflow-scrolling: touch;
 }
+
+/* swimlanes stack vertically; each row scrolls horizontally with the board */
+.swimlane + .swimlane { margin-top: 1.5rem; }
+.swimlane-head { display: flex; align-items: center; gap: .45rem; margin-bottom: .55rem; }
+.sw-name { font-size: .85rem; font-weight: 550; color: var(--text-2); letter-spacing: -.01em; }
+.sw-btn {
+    width: 1.5rem; height: 1.5rem; flex: 0 0 auto;
+    display: grid; place-items: center;
+    color: var(--text-3); border-radius: var(--r-sm); font-size: .8rem;
+}
+.sw-btn:hover { background: var(--surface-2); color: var(--text); }
+.swimlane.is-collapsed .board-row { display: none; }
+.swimlane.is-collapsed .swimlane-head { margin-bottom: 0; }
+
+.board-row { display: flex; gap: .9rem; align-items: flex-start; }
 
 .col { width: var(--col); flex: 0 0 var(--col); }
 .col-head { display: flex; align-items: center; gap: .5rem; padding: .1rem .1rem .6rem; }
@@ -529,9 +543,10 @@ body.selecting .card { cursor: default; }
 
     .board {
         padding: .7rem .7rem 1.2rem;
-        gap: .7rem;
         scroll-snap-type: x mandatory;
     }
+    .board-row { gap: .7rem; }
+    .swimlane + .swimlane { margin-top: 1.1rem; }
     .col { scroll-snap-align: start; }
     .card { padding: .65rem .7rem .75rem; }
     .card-title { font-size: 1rem; }
