@@ -23,6 +23,7 @@
     <a href="#" class="nav-item" data-nav="home"><span class="ni">⌂</span> Početna</a>
     <a href="#" class="nav-item is-active" data-nav="board"><span class="ni">▤</span> Zadaci</a>
     <a href="#" class="nav-item" data-nav="mine"><span class="ni">◉</span> Moji zadaci <span class="badge" id="mineCount">0</span></a>
+    <a href="#" class="nav-item" data-nav="all"><span class="ni">≡</span> Svi zadaci <span class="badge" id="allCount">0</span></a>
     <a href="#" class="nav-item" data-nav="members"><span class="ni">◍</span> Članovi</a>
   </nav>
 
@@ -45,6 +46,8 @@
 
 <!-- ============ MAIN ============ -->
 <main class="main">
+  <div class="robar" id="robar" hidden>Samo gledanje — tvoja uloga na ovom projektu ne dopušta izmjene.</div>
+
   <header class="topbar">
     <button class="icon-btn" id="menuBtn" title="Izbornik">☰</button>
     <div class="crumbs">
@@ -57,6 +60,7 @@
       <button class="chip" id="filterBtn" title="Filtriraj zadatke">Filtri<span id="filterCount"></span></button>
       <button class="icon-btn" id="selectBtn" title="Odaberi više (masovne akcije)">▣</button>
       <button class="icon-btn" id="sortBtn" title="Sortiraj">⇅</button>
+      <button class="icon-btn" id="printBtn" title="Ispis / PDF (Ctrl+P)">⎙</button>
     </div>
   </header>
 
@@ -73,6 +77,14 @@
 
   <section class="board" id="board"></section>
   <section class="listview" id="listview" hidden></section>
+
+  <section class="agg" id="aggview" hidden>
+    <div class="agg-tools">
+      <span class="muted" id="aggInfo"></span>
+      <button class="btn" id="aggExport">Izvezi CSV</button>
+    </div>
+    <div class="agg-body" id="aggList"></div>
+  </section>
   <section class="timeline" id="timeline" hidden>
     <div class="tl-tools">
       <button class="icon-btn" id="tlZoomOut" title="Sitnije">−</button>

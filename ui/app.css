@@ -28,7 +28,7 @@ html[data-theme="dark"] {
     --border-2: rgba(255, 255, 255, .13);
     --text: #ececee;
     --text-2: #9d9da6;
-    --text-3: #6e6e79;
+    --text-3: #7d7d88;
     --accent: #7b83eb;
     --accent-soft: rgba(123, 131, 235, .14);
     --danger: #e5484d;
@@ -46,7 +46,7 @@ html[data-theme="light"] {
     --border-2: #d7d7d0;
     --text: #17171a;
     --text-2: #6c6c74;
-    --text-3: #9a9aa2;
+    --text-3: #6f6f79;
     --accent: #5b64d8;
     --accent-soft: rgba(91, 100, 216, .1);
     --danger: #cf2d33;
@@ -443,6 +443,63 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 }
 
 .empty { padding: 2.5rem .25rem; color: var(--text-3); font-size: .9rem; }
+
+/* ============================================================
+   AGGREGATE VIEW (all projects) / PRINT / READ-ONLY BAR
+   ============================================================ */
+
+.agg { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: .9rem 1rem 1.2rem; gap: .6rem; }
+.agg-tools { display: flex; align-items: center; gap: .5rem; }
+.agg-tools .muted { margin-right: auto; font: 400 .74rem/1 var(--mono); }
+.agg-body { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
+
+.agg-proj {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .7rem; position: sticky; top: 0; z-index: 2;
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+    font-size: .82rem; font-weight: 550;
+}
+.agg-proj .pcode { font: 400 .7rem/1 var(--mono); color: var(--text-3); }
+.agg-proj .col-num { margin-left: auto; }
+
+.agg-row {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .45rem .7rem; border-bottom: 1px solid var(--border);
+    font-size: .86rem; cursor: pointer;
+}
+.agg-row:hover { background: var(--surface-2); }
+.agg-row .card-id { flex: 0 0 auto; font: 400 .72rem/1 var(--mono); color: var(--text-3); }
+.agg-row .agg-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agg-row .agg-col { flex: 0 0 auto; font: 400 .72rem/1 var(--mono); color: var(--text-3); }
+
+.robar {
+    padding: .4rem .8rem; font-size: .78rem;
+    background: rgba(229, 72, 77, .12); color: var(--danger);
+    border-bottom: 1px solid rgba(229, 72, 77, .3);
+}
+
+body.is-readonly [data-add],
+body.is-readonly #selectBtn,
+body.is-readonly .drawer-actions,
+body.is-readonly .dsub-add,
+body.is-readonly #dAddLink,
+body.is-readonly #dCommentSend { display: none !important; }
+
+@media print {
+    html, body { height: auto; background: #fff !important; color: #000 !important; }
+    .side, .topbar, .tabs, .topbar-actions, .fpanel, .popmenu, .bulkbar, .robar,
+    .sw-btn, .icon-btn, .btn, .chip#filterBtn, .agg-tools, .tl-tools, .drawer-wrap,
+    .boardside-scrim, .sideScrim, #toast { display: none !important; }
+    .app { display: block !important; height: auto !important; }
+    .main { height: auto !important; overflow: visible !important; }
+    .board, .listview, .agg, .timeline { overflow: visible !important; height: auto !important; }
+    .board-row { display: flex !important; gap: .4rem; }
+    .col { break-inside: avoid; flex: 0 0 22% !important; width: 22% !important; }
+    .card, .col, .swimlane, .lv-row, .agg-row { border-color: #ccc !important; box-shadow: none !important; }
+    .card { break-inside: avoid; }
+    a { color: #000 !important; text-decoration: none !important; }
+    .swimlane { page-break-inside: auto; }
+}
 
 /* ============================================================
    RELATED TASKS (internal links) + TIMELINE

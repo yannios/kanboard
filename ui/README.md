@@ -55,6 +55,32 @@ izgleda isto kao i prije.
   dolje se pojavi traka s brojem odabranih i akcijama *Premjesti u kolonu*,
   *Dodijeli korisniku*, *Obriši*.
 
+## Svi zadaci (agregat)
+
+Stavka **Svi zadaci** u sidebaru spaja sve projekte u jednu listu, grupiranu po
+projektu (kod projekta, naziv, broj zadataka). Redak prikazuje kolonu, rok i
+kategoriju; klik **prebaci na taj projekt i otvori zadatak**. Filtri i pretraga
+vrijede i ovdje, a **Izvezi CSV** sprema trenutni prikaz (sve projekte ili samo
+otvoreni) — `;` kao separator i BOM, da Excel otvori čitljivo.
+
+## Ispis / PDF
+
+Gumb ⎙ (ili `P`, ili Ctrl+P) otvara ispis. Stilovi za ispis skrivaju sidebar,
+traku, gumbe i ladice; ploča, lista, agregat i vremenska crta ispisuju se na
+bijelom s prelomima po kolonama.
+
+## Prava (samo gledanje)
+
+Kanboard ne vraća ulogu korisnika na projektu kroz JSON-RPC (`getProjectUsers`
+daje samo imena), pa UI pravo provjeri jednim bezopasnim upisom iste vrijednosti:
+ako Kanboard odgovori `403 Forbidden`, sučelje prelazi u **samo gledanje** —
+crvena traka, bez gumba `+`, bez masovnih akcija, bez povlačenja kartica i bez
+akcija u kartici zadatka.
+
+> Napomena: `getAllProjects` je dopušten samo `app-adminu`; UI zato koristi
+> `getMyProjects` (uz zalihu na `getAllProjects`), inače bi običan korisnik dobio
+> prazan ekran.
+
 ## Vremenska crta (Gantt)
 
 Tab **Vremenska crta** prikazuje zadatke kao trake: početak je `date_started`

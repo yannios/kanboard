@@ -45,7 +45,10 @@
         collapsed: {},
         links: [],
         linkTypes: [],
-        tlDay: 30
+        tlDay: 30,
+        aggregate: false,
+        all: [],
+        readonly: false
     };
 
     /* ---------------- helpers ---------------- */
@@ -99,7 +102,11 @@
             headers: { 'Content-Type': 'application/json', 'Authorization': auth },
             body: JSON.stringify({ jsonrpc: '2.0', method: method, id: 1, params: params || {} })
         }).then(function (r) { return r.json(); }).then(function (j) {
-            if (j.error) throw new Error(j.error.message || 'API greška');
+            if (j.error) {
+                var err = new Error(j.error.message || 'API greška');
+                err.code = j.error.code;
+                throw err;
+            }
             return j.result;
         });
     }
@@ -152,11 +159,13 @@
 
     function loadAll() {
         board.innerHTML = '<div class="col"><div class="empty">Učitavam…</div></div>';
-        api('getVersion').then(function (v) {
+        return api('getVersion').then(function (v) {
             $('kbVer').textContent = /unknown|\$Format/.test(v) ? '1.2.57' : v;
             return api('getMe').then(function (me) { state.me = me; return me; }).catch(function () { return null; });
         }).then(function () {
-            return api('getAllProjects');
+            // getAllProjects je samo za app-admina (403 za običnog korisnika);
+            // getMyProjects vraća projekte u kojima korisnik stvarno jest
+            return api('getMyProjects').catch(function () { return api('getAllProjects'); });
         }).then(function (ps) {
             state.projects = (ps || []).filter(function (p) { return p.is_active; });
             renderProjects();
@@ -185,6 +194,14 @@
             fillFilterSelects();
             refreshFilterBar();
             countMine();
+            var firstTasks = [];
+            (state.board || []).forEach(function (sw) {
+                (sw.columns || []).forEach(function (c) {
+                    (c.tasks || []).forEach(function (t) { if (t.is_active) firstTasks.push(t); });
+                });
+            });
+            probePermission(firstTasks);
+            loadAggregate();   // samo za broj u navigaciji
             var t = localStorage.getItem('kbui.task');
             if (t) openTask(Number(t), true);
         }).catch(function (e) {
@@ -348,8 +365,23 @@
         renderList();
         if (state.view === 'calendar') renderCalendar();
         if (state.view === 'timeline') renderTimeline();
+        if (state.aggregate) renderAggregate();
         refreshFilterBar();
         renderBulkBar();
+    }
+
+    // prikaz: agregat sakriva ploču/listu/kalendar/crtu i obrnuto
+    function showAggregate(on) {
+        state.aggregate = !!on;
+        $('aggview').hidden = !state.aggregate;
+        board.hidden = state.aggregate || state.view !== 'board';
+        $('listview').hidden = state.aggregate || state.view !== 'list';
+        $('calendar').hidden = state.aggregate || state.view !== 'calendar';
+        $('timeline').hidden = state.aggregate || state.view !== 'timeline';
+        document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('is-disabled', state.aggregate); });
+        if (state.aggregate) loadAggregate();
+        else if (state.view === 'calendar') renderCalendar();
+        else if (state.view === 'timeline') renderTimeline();
     }
 
     function pickedIds() {
@@ -606,6 +638,148 @@
         }).catch(fail);
     }
 
+    function openInProject(projectId, taskId) {
+        if (state.project && state.project.id === projectId) { openTask(taskId); return; }
+        localStorage.setItem('kbui.project', projectId);
+        showAggregate(false);
+        Promise.resolve(loadAll()).then(function () { openTask(taskId); }).catch(fail);
+    }
+
+    /* ---------------- aggregate (all projects) ---------------- */
+    function loadAggregate() {
+        $('aggList').innerHTML = '<div class="empty">Učitavam sve projekte…</div>';
+        var projects = state.projects || [];
+        return Promise.all(projects.map(function (p) {
+            return Promise.all([
+                api('getAllTasks', { project_id: p.id, status_id: 1 }).catch(function () { return []; }),
+                api('getColumns', { project_id: p.id }).catch(function () { return []; }),
+                api('getAllCategories', { project_id: p.id }).catch(function () { return []; })
+            ]).then(function (r) {
+                var colName = {}, catName = {}, catColor = {};
+                (r[1] || []).forEach(function (c) { colName[c.id] = c.title; });
+                (r[2] || []).forEach(function (c) { catName[c.id] = c.name; catColor[c.id] = c.color_id; });
+                return (r[0] || []).map(function (t) {
+                    t.column_name = colName[t.column_id] || '';
+                    t.category_name = catName[t.category_id] || '';
+                    t.category_color_id = catColor[t.category_id] || '';
+                    return { t: t, p: p };
+                });
+            }).catch(function () { return []; });
+        })).then(function (chunks) {
+            var flat = [];
+            chunks.forEach(function (c) { flat = flat.concat(c); });
+            state.all = flat;
+            renderAggregate();
+        }).catch(fail);
+    }
+
+    function aggVisible(t) {
+        if (state.filter.owner && t.owner_id !== state.filter.owner) return false;
+        if (state.filter.priority && String(t.priority) !== String(state.filter.priority)) return false;
+        if (state.filter.due) {
+            var b = dueBucket(t);
+            if (state.filter.due === 'none' ? b !== 'none' : b !== state.filter.due) return false;
+        }
+        var q = (state.search || '').toLowerCase();
+        if (q && (t.title || '').toLowerCase().indexOf(q) === -1 &&
+            String(t.id).indexOf(q) === -1 && (t.category_name || '').toLowerCase().indexOf(q) === -1) return false;
+        return true;
+    }
+
+    function renderAggregate() {
+        var rows = state.all.filter(function (x) { return aggVisible(x.t); });
+        $('allCount').textContent = state.all.length;
+        var groups = {};
+        var order = [];
+        rows.forEach(function (x) {
+            var k = x.p.id;
+            if (!groups[k]) { groups[k] = { project: x.p, rows: [] }; order.push(k); }
+            groups[k].rows.push(x.t);
+        });
+        $('aggList').innerHTML = order.map(function (k) {
+            var g = groups[k];
+            g.rows.sort(function (a, b) {
+                var ad = a.date_due || 9e12, bd = b.date_due || 9e12;
+                return ad - bd;
+            });
+            var open = g.rows.length;
+            return '<div class="agg-proj"><span class="pcode">' + esc(ref(g.project)) + '</span>' + esc(g.project.name) +
+                '<span class="col-num">' + open + '</span></div>' +
+                g.rows.map(function (t) {
+                    var due = dueInfo(t.date_due);
+                    var id = t.reference || (ref(g.project) + '-' + t.id);
+                    return '<div class="agg-row" data-task="' + t.id + '" data-project="' + g.project.id + '">' +
+                        '<span class="card-id">' + esc(id) + '</span>' +
+                        '<span class="agg-title">' + esc(t.title) + '</span>' +
+                        (t.column_name ? '<span class="agg-col">' + esc(t.column_name) + '</span>' : '') +
+                        (due ? '<span class="chip mono' + (due.overdue ? ' due-over' : due.soon ? ' due-soon' : '') + '">' + ICO.due + ' ' + due.text + '</span>' : '') +
+                        (t.category_name ? '<span class="chip"><span class="dot" style="background:' + (COLOR_HEX[t.category_color_id] || 'var(--text-3)') + '"></span>' + esc(t.category_name) + '</span>' : '') +
+                        '</div>';
+                }).join('');
+        }).join('') || '<div class="empty">Nema zadataka za ovaj filtar.</div>';
+        $('aggInfo').textContent = rows.length + ' zadataka u ' + order.length + ' projekata';
+    }
+
+    function csvCell(v) {
+        v = (v === null || v === undefined) ? '' : String(v);
+        return /[",;\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }
+
+    function exportCSV() {
+        var rows = [];
+        var head = ['Projekt', 'ID', 'Naslov', 'Kolona', 'Dodijeljeno', 'Rok', 'Prioritet', 'Kategorija', 'Opis'];
+        var data = [];
+        if (state.aggregate) {
+            state.all.forEach(function (x) {
+                if (!aggVisible(x.t)) return;
+                data.push([x.p.name, x.t.reference || (ref(x.p) + '-' + x.t.id), x.t.title, x.t.column_name,
+                    ownerName(x.t.owner_id), prettyDate(x.t.date_due), x.t.priority, x.t.category_name, x.t.description]);
+            });
+        } else {
+            var cols = [];
+            (state.board || []).forEach(function (sw) { (sw.columns || []).forEach(function (c) { cols.push(c); }); });
+            cols.forEach(function (c) {
+                (c.tasks || []).filter(function (t) { return t.is_active && visible(t); }).forEach(function (t) {
+                    data.push([state.project.name, t.reference || (ref(state.project) + '-' + t.id), t.title, c.title,
+                        ownerName(t.owner_id), prettyDate(t.date_due), t.priority, t.category_name, '']);
+                });
+            });
+        }
+        if (!data.length) { toast('Nema zadataka za izvoz.'); return; }
+        var csv = [head].concat(data).map(function (r) { return r.map(csvCell).join(';'); }).join('\r\n');
+        var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'kanban-' + (state.aggregate ? 'svi-projekti' : ref(state.project)) + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        toast('Izvezeno ' + data.length + ' zadataka');
+    }
+
+    /* ---------------- read-only (project role) ---------------- */
+    function setReadonly(on) {
+        state.readonly = !!on;
+        document.body.classList.toggle('is-readonly', state.readonly);
+        $('robar').hidden = !state.readonly;
+    }
+
+    // Uloga na projektu nije u JSON-RPC odgovoru (getProjectUsers vraća samo imena),
+    // pa je provjerimo jednim bezopasnim upisom iste vrijednosti: ako ga Kanboard
+    // odbije, korisnik je gledatelj.
+    function probePermission(tasks) {
+        var first = (tasks || [])[0];
+        if (!first) { setReadonly(false); return Promise.resolve(); }
+        if (state.me && state.me.role === 'app-admin') { setReadonly(false); return Promise.resolve(); }
+        return api('updateTask', { id: first.id, title: first.title }).then(function () {
+            setReadonly(false);
+        }).catch(function (e) {
+            var msg = (e && e.message) || '';
+            // Kanboard za nedovoljna prava vraća 403 "Forbidden"
+            setReadonly(e && e.code === 403 || /not allowed|permission|dopu|denied|forbidden/i.test(msg));
+        });
+    }
+
     /* ---------------- related tasks ---------------- */
     function renderLinks(list) {
         state.links = list || [];
@@ -812,6 +986,14 @@
             var b = e.target.closest('[data-fs]');
             if (b) applyFs(b.dataset.fs);
         });
+        $('printBtn').addEventListener('click', function () { window.print(); });
+        $('aggExport').addEventListener('click', exportCSV);
+        $('aggList').addEventListener('click', function (e) {
+            var row = e.target.closest('[data-task]');
+            if (!row) return;
+            var pid = Number(row.dataset.project);
+            openInProject(pid, Number(row.dataset.task));
+        });
         $('addProjectHint').addEventListener('click', function () {
             toast('Projekte kreiraš u Kanboardu — ovo sučelje ih samo prikazuje.');
         });
@@ -889,9 +1071,19 @@
             document.querySelectorAll('.nav-item').forEach(function (x) { x.classList.remove('is-active'); });
             item.classList.add('is-active');
 
+            if (nav === 'all') {
+                showAggregate(true);
+                applyFilters();
+                return;
+            }
+            if (state.aggregate) showAggregate(false);
+
             if (nav === 'home') {
                 state.filter = { owner: 0, category: 0, priority: '', due: '' };
                 state.search = ''; $('search').value = '';
+                applyFilters();
+            } else if (nav === 'board') {
+                state.view = 'board';
                 applyFilters();
             } else if (nav === 'mine') {
                 state.filter = { owner: (state.me && state.me.id) || 1, category: 0, priority: '', due: '' };
@@ -912,6 +1104,7 @@
         $('search').addEventListener('input', function (e) {
             state.search = e.target.value.trim();
             renderBoard(); renderList();
+            if (state.aggregate) renderAggregate();
         });
         $('sortBtn').addEventListener('click', function () {
             state.sort = state.sort === 'due' ? 'priority' : 'due';
@@ -923,6 +1116,7 @@
         document.querySelector('.tabs').addEventListener('click', function (e) {
             var b = e.target.closest('.tab');
             if (!b) return;
+            if (state.aggregate) showAggregate(false);
             state.view = b.dataset.view;
             document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('is-active', x === b); });
             board.hidden = state.view !== 'board';
@@ -988,7 +1182,7 @@
         board.addEventListener('dragstart', function (e) {
             var c = e.target.closest('.card');
             if (!c) return;
-            if (state.selecting) { e.preventDefault(); return; }
+            if (state.selecting || state.readonly) { e.preventDefault(); return; }
             dragId = Number(c.dataset.task);
             c.classList.add('is-dragging');
             e.dataTransfer.effectAllowed = 'move';
@@ -1160,9 +1354,11 @@
             if (typing) return;
 
             if (e.key === '/') { e.preventDefault(); $('search').focus(); return; }
+            if (e.key === 'p') { window.print(); return; }
             if (e.key === 't') { applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); return; }
             if (e.key === 'n') {
                 e.preventDefault();
+                if (state.readonly) { toast('Samo gledanje — nemaš pravo dodavati zadatke.'); return; }
                 var first = document.querySelector('.cards');
                 if (first) newCardForm(first.dataset.drop, first);
                 return;
