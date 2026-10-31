@@ -566,7 +566,7 @@
             return '<section class="swimlane' + (coll ? ' is-collapsed' : '') + '" data-swimlane="' + sw.id + '">' +
                 (multi
                     ? '<header class="swimlane-head">' +
-                      '<button class="sw-btn" data-collapse="' + sw.id + '" title="Sklopi/raširi stazu">' + (coll ? '▸' : '▾') + '</button>' +
+                      '<button class="sw-btn" data-collapse="' + sw.id + '" title="Sklopi/raširi fazu">' + (coll ? '▸' : '▾') + '</button>' +
                       '<span class="sw-name">' + esc(sw.name) + '</span>' +
                       '<span class="col-num">' + sw.__count + '</span>' +
                       '</header>'
@@ -593,6 +593,8 @@
                     return '<div class="lv-row" data-task="' + t.id + '">' +
                         '<span class="card-id">' + esc(id) + '</span>' +
                         '<span class="lv-title">' + esc(t.title) + '</span>' +
+                        (t.nb_subtasks ? '<span class="chip mono">' + ICO.sub + ' ' +
+                            (t.nb_completed_subtasks || 0) + '/' + t.nb_subtasks + '</span>' : '') +
                         (due ? '<span class="chip mono' + (due.overdue ? ' due-over' : due.soon ? ' due-soon' : '') + '">' + ICO.due + ' ' + due.text + '</span>' : '') +
                         (t.category_name ? '<span class="chip"><span class="dot" style="background:' + (COLOR_HEX[t.category_color_id] || 'var(--text-3)') + '"></span>' + esc(t.category_name) + '</span>' : '') +
                         ((t.assignee_name || ownerName(t.owner_id)) ? '<span class="assignee">' + initials(t.assignee_name || ownerName(t.owner_id)) + '</span>' : '') +
@@ -1114,6 +1116,11 @@
 
     function saveUser() {
         var username = $('ufUsername').value.trim();
+        if (userEditId && isMe(userEditId) && $('ufRole').value !== 'app-admin') {
+            toast('Ne možeš sebi ukinuti administratorsku rolu.');
+            $('ufRole').value = 'app-admin';
+            return;
+        }
         var password = $('ufPassword').value;
         var name = $('ufName').value.trim();
         var email = $('ufEmail').value.trim();
@@ -1140,8 +1147,16 @@
         });
     }
 
+    function isMe(id) {
+        return !!(state.me && Number(state.me.id) === Number(id));
+    }
+
     function userAction(act, row) {
         var id = Number(row.dataset.user);
+        if (isMe(id) && (act === 'toggle' || act === 'del')) {
+            toast('Ne možeš onemogućiti ni obrisati vlastiti račun.');
+            return;
+        }
         if (act === 'edit') { editUser(id); return; }
         if (act === 'toggle') {
             var disable = !!row.querySelector('[data-uact="toggle"]') &&
@@ -1357,8 +1372,8 @@
                         '<button class="icon-btn sm" data-act="laneedit" title="Preimenuj">✎</button>' +
                         '<button class="icon-btn sm" data-act="lanedel" title="Obriši">✕</button>' +
                         '</div>';
-                }).join('') || '<div class="pm-note">Nema staza.</div>') +
-                '<div class="pm-add"><input id="pmLaneName" placeholder="nova staza…"><button class="btn primary" data-act="laneadd">Dodaj</button></div>';
+                }).join('') || '<div class="pm-note">Nema faza.</div>') +
+                '<div class="pm-add"><input id="pmLaneName" placeholder="nova faza…"><button class="btn primary" data-act="laneadd">Dodaj</button></div>';
             }).catch(pmErr);
             return;
         }
@@ -1408,7 +1423,9 @@
                       '</select><select id="pmUserRole">' +
                       Object.keys(PM_ROLES).map(function (r) { return '<option value="' + r + '">' + PM_ROLES[r] + '</option>'; }).join('') +
                       '</select><button class="btn primary" data-act="useradd">Dodaj</button></div>'
-                    : '<p class="pm-note">Svi korisnici su već na projektu.</p>');
+                    : '<p class="pm-note">Svi korisnici su već na projektu.</p>') +
+                '<p class="pm-note">Trebaš novu osobu? <button class="linkbtn" data-act="newuser">Napravi korisnika</button>' +
+                (state.me && state.me.role === 'app-admin' ? '' : ' (dostupno administratoru)') + '</p>';
 
                 // točna uloga po korisniku (getProjectUsers vraća samo imena)
                 members.forEach(function (m) {
@@ -1547,12 +1564,18 @@
             return;
         }
         if (act === 'lanedel') {
-            if (!confirm('Obrisati stazu? Zadaci se premještaju u prvu stazu.')) return;
+            if (!confirm('Obrisati fazu? Zadaci se premještaju u prvu fazu.')) return;
             api('removeSwimlane', { project_id: pid, swimlane_id: Number(row.dataset.lane) })
                 .then(function () { renderPm(); loadAll(); }).catch(pmErr);
             return;
         }
 
+        if (act === 'newuser') {
+            if (!(state.me && state.me.role === 'app-admin')) { toast('Korisnike pravi administrator.'); return; }
+            $('projWrap').hidden = true;
+            openUsers();
+            return;
+        }
         if (act === 'useradd') {
             var uid = Number($('pmUserId').value);
             var role = $('pmUserRole').value;
@@ -1676,6 +1699,16 @@
         }).catch(fail);
     }
 
+    function refreshBoardOnly() {
+        return api('getBoard', { project_id: state.project.id }).then(function (b) {
+            state.board = b || [];
+            renderBoard();
+            renderList();
+            if (state.view === 'calendar') renderCalendar();
+            if (state.view === 'timeline') renderTimeline();
+        }).catch(function () {});
+    }
+
     function renderTimeSummary() {
         var t = state.task || {};
         var subSum = (state.subtasks || []).reduce(function (a, s) { return a + (Number(s.time_spent) || 0); }, 0);
@@ -1727,12 +1760,30 @@
     }
 
     /* ---------------- related tasks ---------------- */
+    var LINK_LABEL = {
+        'relates to': 'povezano s',
+        'blocks': 'blokira',
+        'is blocked by': 'blokirano od',
+        'duplicates': 'duplikat',
+        'is duplicated by': 'duplicirano od',
+        'is a child of': 'podređeno',
+        'is a parent of': 'nadređeno',
+        'targets milestone': 'cilja na fazu',
+        'is a milestone of': 'faza za',
+        'fixes': 'rješava',
+        'is fixed by': 'riješeno od'
+    };
+
+    function linkLabel(l) {
+        return LINK_LABEL[l] || l;
+    }
+
     function renderLinks(list) {
         state.links = list || [];
         $('dLinkCount').textContent = list.length ? list.length : '';
         $('dLinks').innerHTML = list.map(function (l) {
             return '<div class="link-row">' +
-                '<span class="lkind">' + esc(l.label) + '</span>' +
+                '<span class="lkind">' + esc(linkLabel(l.label)) + '</span>' +
                 '<span class="lname" data-open="' + l.task_id + '">' + esc(l.title || '') + '</span>' +
                 '<span class="lref">' + esc(ref(state.project) + '-' + l.task_id) + '</span>' +
                 '<button class="icon-btn sm" data-unlink="' + l.id + '" title="Ukloni vezu">✕</button>' +
@@ -1743,7 +1794,7 @@
     function addLink() {
         var types = (state.linkTypes || []);
         if (!types.length) { toast('Kanboard ne vraća tipove veza.'); return; }
-        openPop($('dAddLink'), types.map(function (t) { return { label: t.label, value: t.id }; }), function (type) {
+        openPop($('dAddLink'), types.map(function (t) { return { label: linkLabel(t.label), value: t.id }; }), function (type) {
             var others = allTasks().filter(function (t) { return t.id !== state.task.id; });
             if (!others.length) { toast('Nema drugih zadataka u projektu.'); return; }
             openPop($('dAddLink'), others.map(function (t) {
@@ -2063,6 +2114,21 @@
         });
         // projekti: novi + postavke
         $('newProjectBtn').addEventListener('click', function () { openNewProject(); });
+        $('wsBtn').addEventListener('click', function () {
+            openPop($('wsBtn'), [
+                { label: 'Korisnici', value: 'users' },
+                { label: 'Kanboard administracija', value: 'admin' },
+                { label: 'Odjava', value: 'logout' }
+            ], function (it) {
+                if (it.value === 'users') {
+                    if (state.me && state.me.role === 'app-admin') openUsers();
+                    else toast('Korisnike uređuje administrator.');
+                    return;
+                }
+                if (it.value === 'admin') { window.open('../index.php', '_blank', 'noopener'); return; }
+                $('logoutBtn').click();
+            });
+        });
         $('usersBtn').addEventListener('click', function (e) { e.preventDefault(); openUsers(); });
         $('usersClose').addEventListener('click', function () { $('usersWrap').hidden = true; });
         $('usersScrim').addEventListener('click', function () { $('usersWrap').hidden = true; });
@@ -2314,17 +2380,31 @@
             if (c) c.classList.remove('is-dragging');
         });
         board.addEventListener('dragover', function (e) {
+            var col = e.target.closest('.col');
+            if (col) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                Array.prototype.forEach.call(board.querySelectorAll('.col.drag-over'), function (c) {
+                    if (c !== col) c.classList.remove('drag-over');
+                });
+                col.classList.add('drag-over');
+                return;
+            }
             var zone = e.target.closest('.cards');
             if (!zone) return;
             e.preventDefault();
             zone.classList.add('drag-over');
         });
         board.addEventListener('dragleave', function (e) {
+            var col = e.target.closest('.col');
+            if (col && !col.contains(e.relatedTarget)) col.classList.remove('drag-over');
             var zone = e.target.closest('.cards');
             if (zone) zone.classList.remove('drag-over');
         });
         board.addEventListener('drop', function (e) {
-            var zone = e.target.closest('.cards');
+            var colEl = e.target.closest('.col');
+            if (colEl) colEl.classList.remove('drag-over');
+            var zone = e.target.closest('.cards') || (colEl && colEl.querySelector('.cards'));
             if (!zone) return;
             e.preventDefault();
             zone.classList.remove('drag-over');
@@ -2467,7 +2547,10 @@
             var cb = e.target.closest('[data-sub]');
             if (!cb) return;
             api('updateSubtask', { id: Number(cb.dataset.sub), task_id: state.task.id, status: cb.checked ? 1 : 0 })
-                .then(function () { openTask(state.task.id, true); }).catch(fail);
+                .then(function () {
+                    openTask(state.task.id, true);
+                    refreshBoardOnly();
+                }).catch(fail);
         });
         $('dCommentInput').addEventListener('keyup', function (e) {
             if (e.key === 'Escape') { closePop(); return; }
