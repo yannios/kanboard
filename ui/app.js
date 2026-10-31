@@ -26,7 +26,8 @@
 
     var state = {
         user: localStorage.getItem(LS_USER) || 'admin',
-        token: localStorage.getItem(LS_TOKEN) || 'hermes-ui-2026',
+        token: localStorage.getItem(LS_TOKEN) || '',
+        mode: 'session',
         projects: [],
         project: null,
         board: [],            // swimlanes → columns → tasks
@@ -96,19 +97,36 @@
 
     /* ---------------- API ---------------- */
     function api(method, params) {
-        var auth = 'Basic ' + btoa(state.user + ':' + state.token);
-        return fetch(ENDPOINT, {
+        var headers = { 'Content-Type': 'application/json' };
+        var url = ENDPOINT;
+
+        if (state.mode === 'session') {
+            url = 'proxy.php';               // token ostaje na poslužitelju
+            headers['X-KBUI'] = '1';
+        } else {
+            headers['Authorization'] = 'Basic ' + btoa(state.user + ':' + state.token);
+        }
+
+        return fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': auth },
+            headers: headers,
+            credentials: 'same-origin',
             body: JSON.stringify({ jsonrpc: '2.0', method: method, id: 1, params: params || {} })
         }).then(function (r) { return r.json(); }).then(function (j) {
             if (j.error) {
                 var err = new Error(j.error.message || 'API greška');
                 err.code = j.error.code;
+                if (j.error.code === 401 && state.mode === 'session') sessionLost();
                 throw err;
             }
             return j.result;
         });
+    }
+
+    function sessionLost() {
+        state.mode = 'session';
+        toast('Sesija je istekla — prijavi se ponovno.');
+        openAuth();
     }
 
     function fail(e) {
@@ -128,8 +146,32 @@
         applyFs(localStorage.getItem(LS_FS) || 'md');
         $('aEndpoint').textContent = new URL(ENDPOINT, location.href).href;
         wire();
-        if (!state.token) { openAuth(); return; }
-        loadAll();
+        checkSession();
+    }
+
+    // Redoslijed: ako postoji sesija na poslužitelju -> proxy; ako je PHP
+    // nedostupan (statični hosting) -> stari način s API tokenom.
+    function checkSession() {
+        fetch('login.php?action=status', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (s) {
+                if (s && s.authenticated) {
+                    state.mode = 'session';
+                    state.user = s.user.username;
+                    state.me = s.user;
+                    $('authWrap').hidden = true;
+                    loadAll();
+                } else {
+                    tokenMode();
+                }
+            })
+            .catch(function () { tokenMode(); });
+    }
+
+    function tokenMode() {
+        state.mode = 'token';
+        if (state.token) { loadAll(); return; }
+        openAuth();
     }
 
     function applyFs(size) {
@@ -961,9 +1003,69 @@
 
     /* ---------------- auth ---------------- */
     function openAuth() {
-        $('aUser').value = state.user;
-        $('aToken').value = state.token;
+        $('aUser').value = state.user || '';
+        $('aPass').value = '';
+        $('aToken').value = state.token || '';
+        $('loginForm').hidden = false;
+        $('authTokenBox').hidden = true;
+        $('aCaptchaRow').hidden = true;
+        authError('');
         $('authWrap').hidden = false;
+    }
+
+    function authError(msg) {
+        var el = $('aError');
+        if (!msg) { el.hidden = true; el.textContent = ''; return; }
+        el.textContent = msg;
+        el.hidden = false;
+    }
+
+    function showCaptcha() {
+        var u = $('aUser').value.trim();
+        fetch('login.php?action=captcha&username=' + encodeURIComponent(u), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                if (!j.needed) { $('aCaptchaRow').hidden = true; return; }
+                $('aCaptchaImg').src = j.image;
+                $('aCaptchaRow').hidden = false;
+            })
+            .catch(function () {});
+    }
+
+    function doLogin() {
+        var body = { username: $('aUser').value.trim(), password: $('aPass').value };
+        if (!$('aCaptchaRow').hidden) { body.captcha = $('aCaptcha').value.trim(); }
+
+        authError('');
+        $('authSave').disabled = true;
+
+        fetch('login.php?action=login', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(function (r) {
+            return r.json().then(function (j) { j.__status = r.status; return j; });
+        }).then(function (j) {
+            $('authSave').disabled = false;
+            $('aCaptcha').value = '';
+
+            if (j.ok) {
+                state.mode = 'session';
+                state.user = j.user.username;
+                state.me = j.user;
+                $('aPass').value = '';
+                $('authWrap').hidden = true;
+                loadAll();
+                return;
+            }
+
+            authError(j.error || 'Prijava nije uspjela.');
+            if (j.captcha) showCaptcha();
+        }).catch(function (e) {
+            $('authSave').disabled = false;
+            authError('Prijava nije moguća: ' + (e && e.message ? e.message : e));
+        });
     }
 
     /* ---------------- events ---------------- */
@@ -1327,16 +1429,41 @@
             }).catch(fail);
         });
 
-        // auth modal
-        $('authSave').addEventListener('click', function () {
+        // prijava
+        $('loginForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            doLogin();
+        });
+        $('authAdvanced').addEventListener('click', function () {
+            $('loginForm').hidden = true;
+            $('authTokenBox').hidden = false;
+            $('aToken').value = state.token || '';
+        });
+        $('authTokenBack').addEventListener('click', function () {
+            $('authTokenBox').hidden = true;
+            $('loginForm').hidden = false;
+        });
+        $('authTokenSave').addEventListener('click', function () {
+            var token = $('aToken').value.trim();
+            if (!token) { authError('Upiši API token.'); return; }
+            state.mode = 'token';
             state.user = $('aUser').value.trim() || 'admin';
-            state.token = $('aToken').value.trim();
+            state.token = token;
             localStorage.setItem(LS_USER, state.user);
             localStorage.setItem(LS_TOKEN, state.token);
             $('authWrap').hidden = true;
             loadAll();
         });
-        $('authCancel').addEventListener('click', function () { $('authWrap').hidden = true; });
+        $('logoutBtn').addEventListener('click', function () {
+            fetch('login.php?action=logout', { method: 'POST', credentials: 'same-origin' })
+                .catch(function () {})
+                .then(function () {
+                    localStorage.removeItem(LS_TOKEN);
+                    state.token = '';
+                    state.mode = 'session';
+                    location.reload();
+                });
+        });
         $('authScrim').addEventListener('click', function () { $('authWrap').hidden = true; });
 
         document.addEventListener('keydown', function (e) {

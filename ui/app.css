@@ -604,6 +604,7 @@ body.selecting .card { cursor: default; }
 
 @media (max-width: 860px) {
     .fpanel { right: .7rem; left: .7rem; width: auto; top: 6.4rem; }
+.hint.err { color: var(--danger); margin: .2rem 0 .5rem; }
     .bulkbar { left: .7rem; right: .7rem; transform: none; flex-wrap: wrap; justify-content: center; bottom: .8rem; }
     .bulkbar > span { flex: 1 1 100%; text-align: center; padding: 0 0 .3rem; }
 }

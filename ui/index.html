@@ -40,6 +40,7 @@
     </div>
     <button class="nav-item" id="themeBtn"><span class="ni">◐</span> <span id="themeLabel">Svijetla tema</span></button>
     <button class="nav-item" id="authBtn"><span class="ni">⚙</span> Povezivanje</button>
+    <button class="nav-item" id="logoutBtn"><span class="ni">⏻</span> Odjava</button>
     <div class="ver">Kanboard API · v<span id="kbVer">?</span></div>
   </div>
 </aside>
@@ -181,15 +182,34 @@
 <div class="modal-wrap" id="authWrap" hidden>
   <div class="scrim" id="authScrim"></div>
   <div class="modal">
-    <h3>Povezivanje s Kanboardom</h3>
-    <p class="muted">Sve što vidiš dolazi iz Kanboarda preko njegovog API-ja. Podaci se spremaju u tvoj preglednik.</p>
-    <div class="field"><label>Korisnik</label><input id="aUser" autocomplete="username"></div>
-    <div class="field"><label>API token</label><input id="aToken" autocomplete="off"></div>
-    <p class="hint">Token se generira u Kanboardu: <em>Moj profil → API pristup</em>. Adresa API-ja: <code id="aEndpoint"></code></p>
-    <div class="modal-actions">
-      <button class="btn" id="authCancel">Odustani</button>
-      <button class="btn primary" id="authSave">Spoji se</button>
+    <h3>Prijava</h3>
+    <p class="muted">Prijavljuješ se svojim Kanboard računom. Lozinka se provjerava na poslužitelju i ne sprema se u preglednik.</p>
+
+    <form id="loginForm">
+      <div class="field"><label>Korisničko ime</label><input id="aUser" autocomplete="username" required></div>
+      <div class="field"><label>Lozinka</label><input id="aPass" type="password" autocomplete="current-password" required></div>
+      <div class="field" id="aCaptchaRow" hidden>
+        <label>Znakovi sa slike</label>
+        <img id="aCaptchaImg" alt="captcha" style="display:block;margin:.2rem 0 .45rem;border-radius:var(--r-sm)">
+        <input id="aCaptcha" autocomplete="off" placeholder="upiši znakove">
+      </div>
+      <p class="hint err" id="aError" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="authAdvanced">Napredno: API token</button>
+        <button type="submit" class="btn primary" id="authSave">Prijavi se</button>
+      </div>
+    </form>
+
+    <div id="authTokenBox" hidden>
+      <div class="field"><label>API token</label><input id="aToken" autocomplete="off"></div>
+      <p class="hint">Token se generira u Kanboardu: <em>Moj profil → API pristup</em>.</p>
+      <div class="modal-actions">
+        <button class="btn" id="authTokenBack">Natrag na prijavu</button>
+        <button class="btn primary" id="authTokenSave">Spoji se tokenom</button>
+      </div>
     </div>
+
+    <p class="hint">Adresa API-ja: <code id="aEndpoint"></code></p>
   </div>
 </div>
 

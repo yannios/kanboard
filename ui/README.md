@@ -55,6 +55,32 @@ izgleda isto kao i prije.
   dolje se pojavi traka s brojem odabranih i akcijama *Premjesti u kolonu*,
   *Dodijeli korisniku*, *Obriši*.
 
+## Prijava
+
+UI se prijavljuje **korisničkim imenom i lozinkom sa Kanboard računa** — dvije male
+PHP točke rade taj posao:
+
+- `login.php` — provjerava lozinku **Kanboardovim vlastitim validatorom**
+  (`authValidator`), pa vrijede ista pravila kao za klasičnu prijavu: neaktivni,
+  LDAP i računi bez obrasca ne mogu se prijaviti, broje se promašaji, račun se
+  zaključava nakon `BRUTEFORCE_LOCKDOWN` pokušaja i traži captcha nakon
+  `BRUTEFORCE_CAPTCHA`. Na uspjeh sprema korisnika i njegov API token u sesiju.
+- `proxy.php` — prima JSON-RPC pozive iz preglednika i izvršava ih u ime
+  prijavljenog korisnika. **Token nikad ne ide u preglednik**, a poziv se izvršava
+  unutar istog PHP procesa (bez HTTP poziva na samog sebe, pa nema mrtve blokade
+  na jednoprocesnim postavkama). Zahtijeva `X-KBUI: 1` i `application/json`, što
+  onemogućuje CSRF s druge domene.
+
+Sesija je Kanboardova (`KB_SID`, spremnik u bazi). **Odjava** je u sidebaru.
+Računi s uključenom dvofaktorskom zaštitom ne mogu se prijaviti kroz UI (poruka
+ih uputi na token).
+
+### Način s API tokenom (bez PHP-a)
+
+Ako se `login.php` ne može dohvatiti (npr. UI se poslužuje sa statičnog hostera),
+UI se sam prebaci na stari način: **Napredno: API token** u prijavnom obrascu,
+token iz *Moj profil → API pristup*. Tada token stoji u `localStorage` preglednika.
+
 ## Svi zadaci (agregat)
 
 Stavka **Svi zadaci** u sidebaru spaja sve projekte u jednu listu, grupiranu po
