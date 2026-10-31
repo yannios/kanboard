@@ -1,0 +1,1217 @@
+/*!
+ * UiPolish — "Hermes" look for Kanboard
+ * -----------------------------------------------------------------
+ * Palette lifted from Hermes Agent's own default skin
+ * (hermes_cli/skin_engine.py → _BUILTIN_SKINS["default"]):
+ *   dark : page #1a1a2e · gold #FFD700 · amber #FFBF00 ·
+ *          goldenrod #DAA520 · bronze #CD7F32 · ink #FFF8DC
+ *   light: goldenrod #C8961E / #D89B04 · ink #5C4718 · warm paper
+ * Type is Inter (cv01/ss03), weights 400 / 510 / 590, sumi-tight tracking.
+ * Loads after the active theme; overrides via html:root + html body so it wins
+ * regardless of plugin load order.
+ */
+
+/* ============================================================
+   1. FONT — Inter Variable, local (no CDN, works offline)
+   ============================================================ */
+
+@font-face {
+    font-family: "Inter";
+    src: url("../fonts/InterVariable.woff2") format("woff2-variations");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("../fonts/InterVariable-Italic.woff2") format("woff2-variations");
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* ============================================================
+   2. TOKENS — dark (Hermes' native mode)
+   ============================================================ */
+
+html:root {
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+    /* --- light = Hermes' warm "paper" overlay --- */
+    --page: #fbf8f0;
+    --surface: #ffffff;
+    --surface-2: #f6f1e3;
+    --column: #f4eddb;
+    --line: #e6dcc2;
+    --line-strong: #d5c69c;
+
+    --text: #4a3a14;
+    --text-2: #6d5722;
+    --text-3: #a97e10;
+    --text-4: #b8a878;
+
+    --brand: #c8961e;
+    --brand-hover: #a97e10;
+    --brand-soft: rgba(200, 150, 30, .13);
+    --ring: rgba(200, 150, 30, .3);
+
+    --danger: #c62828;
+    --warn: #d97706;
+    --success: #2e7d32;
+
+    --radius-xs: 2px;
+    --radius-sm: 3px;
+    --radius: 4px;
+    --radius-card: 5px;
+    --radius-lg: 7px;
+    --radius-pill: 9999px;
+
+    --shadow-xs: 0 1px 2px rgba(74, 58, 20, .05);
+    --shadow-sm: 0 1px 2px rgba(74, 58, 20, .07);
+    --shadow-md: 0 4px 12px rgba(74, 58, 20, .09);
+    --shadow-lg: 0 8px 24px rgba(74, 58, 20, .14);
+    --shadow-xl: 0 16px 48px rgba(74, 58, 20, .2);
+
+    --transition: 120ms cubic-bezier(.4, 0, .2, 1);
+
+    /* feed Kanboard's own variables */
+    --color-primary: var(--brand);
+    --color-light: var(--text-3);
+    --color-lighter: var(--line);
+    --color-dark: var(--text);
+    --color-medium: var(--text-2);
+    --color-error: var(--danger);
+    --input-border-color: var(--line-strong);
+    --input-focus-border-color: var(--brand);
+    --link-color-primary: var(--brand);
+}
+
+/* --- dark: Hermes' native gold-on-navy --- */
+html .theme-dark,
+html.theme-dark {
+    --page: #14142a;
+    --surface: #1a1a2e;
+    --surface-2: #23233d;
+    --column: #16162b;
+    --line: rgba(205, 127, 50, .28);
+    --line-strong: rgba(205, 127, 50, .45);
+
+    --text: #fff8dc;
+    --text-2: #e6dcc0;
+    --text-3: #b8860b;
+    --text-4: #8a7a4a;
+
+    --brand: #ffbf00;
+    --brand-hover: #ffd700;
+    --brand-soft: rgba(255, 191, 0, .14);
+    --ring: rgba(255, 191, 0, .35);
+
+    --danger: #ef5350;
+    --warn: #ffa726;
+    --success: #4caf50;
+
+    --shadow-xs: none;
+    --shadow-sm: none;
+    --shadow-md: 0 0 0 1px rgba(255, 191, 0, .12);
+    --shadow-lg: 0 0 0 1px rgba(205, 127, 50, .35), 0 8px 24px rgba(0, 0, 0, .5);
+    --shadow-xl: 0 0 0 1px rgba(255, 191, 0, .22), 0 24px 64px rgba(0, 0, 0, .6);
+
+    --color-lighter: var(--line);
+}
+
+/* ============================================================
+   3. BASE TYPE
+   ============================================================ */
+
+html body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--page);
+    font-feature-settings: "cv01" 1, "ss03" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html body ::selection { background: var(--brand); color: #1a1a2e; }
+
+html body a { color: var(--brand); text-decoration: none; transition: color var(--transition); }
+html body a:hover { color: var(--brand-hover); }
+
+/* headings take the skin's banner_title gold */
+html body h1, html body h2, html body h3, html body h4 {
+    font-weight: 590;
+    letter-spacing: -.015em;
+    line-height: 1.25;
+}
+html .theme-dark h1, html.theme-dark h1,
+html .theme-dark h2, html.theme-dark h2,
+html .theme-dark h3, html.theme-dark h3 { color: #ffd700; }
+html body h1 { font-size: 1.45rem; letter-spacing: -.022em; }
+html body h2 { font-size: 1.18rem; letter-spacing: -.018em; }
+html body h3 { font-size: 1.02rem; }
+html body h4 { font-size: .94rem; font-weight: 510; }
+
+html body .text-muted,
+html body .text-soft { color: var(--text-3); }
+
+html body input, html body select, html body textarea, html body button {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv01" 1, "ss03" 1;
+}
+
+html body * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+html body ::-webkit-scrollbar { width: 10px; height: 10px; }
+html body ::-webkit-scrollbar-track { background: transparent; }
+html body ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: var(--radius-pill);
+}
+
+html body :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+    border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   4. PAGE HEADER — the "response box": gold frame, navy fill
+   ============================================================ */
+
+html body .page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--brand);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-xs);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+html body .page-header h1,
+html body .page-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 590;
+    letter-spacing: -.012em;
+}
+
+html body .page-header .views { margin-left: auto; }
+
+html body .views a,
+html body .views span { font-size: .8125rem; font-weight: 510; color: var(--text-2); }
+html body .views a.active,
+html body .views .active { color: var(--brand); }
+
+/* ============================================================
+   5. SIDEBAR
+   ============================================================ */
+
+html body .sidebar-container {
+    padding: 12px 8px;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+}
+
+html body .sidebar-title {
+    font-size: .6875rem;
+    font-weight: 590;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-4);
+    padding: 10px 10px 4px;
+}
+
+html body .sidebar ul { list-style: none; margin: 0 0 12px; padding: 0; }
+
+html body .sidebar ul li a,
+html body .sidebar a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    color: var(--text-2);
+    font-size: .875rem;
+    font-weight: 510;
+    letter-spacing: -.006em;
+    transition: background var(--transition), color var(--transition);
+}
+
+html body .sidebar ul li a:hover,
+html body .sidebar a:hover { background: var(--surface-2); color: var(--brand); }
+
+html body .sidebar a.active,
+html body .sidebar li.active > a { background: var(--brand-soft); color: var(--brand-hover); }
+
+/* ============================================================
+   6. BUTTONS — gold primary (like the skin's prompt/CTA)
+   ============================================================ */
+
+html body .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text) !important;
+    font-size: .8125rem;
+    font-weight: 510;
+    letter-spacing: -.006em;
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition),
+                color var(--transition), box-shadow var(--transition);
+}
+
+html body .btn:hover { background: var(--surface-2); border-color: var(--brand); }
+
+html body .btn-blue,
+html body .btn-primary {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #1a1a2e !important;
+    text-shadow: none;
+    box-shadow: none;
+}
+
+html body .btn-blue:hover,
+html body .btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+
+html body .btn-red,
+html body .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff !important; }
+html body .btn-red:hover,
+html body .btn-danger:hover { filter: brightness(1.08); }
+
+html body .btn-green,
+html body .btn-success { background: var(--success); border-color: var(--success); color: #fff !important; }
+
+html body .btn:disabled,
+html body .btn.disabled { opacity: .45; box-shadow: none; cursor: not-allowed; }
+
+/* ============================================================
+   7. FORMS
+   ============================================================ */
+
+html body input[type="text"],
+html body input[type="password"],
+html body input[type="email"],
+html body input[type="number"],
+html body input[type="date"],
+html body input[type="search"],
+html body input[type="url"],
+html body input[type="tel"],
+html body select,
+html body textarea {
+    font-size: .875rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    box-shadow: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+html body input::placeholder,
+html body textarea::placeholder { color: var(--text-4); }
+
+html body input:focus,
+html body select:focus,
+html body textarea:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--ring);
+}
+
+html body label {
+    font-size: .8125rem;
+    font-weight: 510;
+    color: var(--text-2);
+    letter-spacing: -.006em;
+}
+
+html body .form-help { font-size: .8125rem; color: var(--text-3); line-height: 1.5; }
+html body .form-required { color: var(--danger); }
+
+html body .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 14px;
+    margin-top: 6px;
+    border-top: 1px solid var(--line);
+}
+
+html body .form-actions a { font-size: .8125rem; color: var(--text-3); font-weight: 510; }
+html body .form-actions a:hover { color: var(--brand); }
+
+/* ============================================================
+   8. TABLES + TASK LISTS
+   ============================================================ */
+
+html body .table-list {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    background: var(--surface);
+}
+
+html body .table-list-header {
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+    font-size: .6875rem;
+    font-weight: 590;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+html body .table-list-header a { color: var(--text-3); }
+html body .table-list-header a:hover { color: var(--brand); }
+
+html body .table-list-row { border-bottom: 1px solid var(--line); transition: background var(--transition); }
+html body .table-list-row:last-child { border-bottom: 0; }
+html body .table-list-row:hover { background: var(--surface-2); }
+
+html body .table-list-title { font-size: .875rem; font-weight: 510; letter-spacing: -.006em; }
+html body .table-list-details { font-size: .8125rem; color: var(--text-3); }
+
+html body table.table-striped th,
+html body .table-small th {
+    font-size: .6875rem;
+    font-weight: 590;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    background: var(--surface-2);
+}
+
+html body table.table-striped th,
+html body table.table-striped td { padding: 8px 10px; border-color: var(--line); }
+
+/* ============================================================
+   9. BOARD — columns and cards
+   ============================================================ */
+
+html body .board-column {
+    background: var(--column);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    margin-right: 12px;
+    transition: border-color var(--transition);
+}
+
+html body .board-column:hover { border-color: var(--line-strong); }
+
+html body .board-column-header {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    background: transparent;
+}
+
+html body .board-column-title,
+html body .board-column-header .board-column-title a {
+    font-size: .75rem;
+    font-weight: 590;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+html body .board-column-header-task-count {
+    display: inline-block;
+    min-width: 18px;
+    padding: 0 6px;
+    margin-left: 6px;
+    font-size: .6875rem;
+    font-weight: 510;
+    color: var(--brand);
+    background: var(--brand-soft);
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+}
+
+html body .board-task-list { padding: 8px; }
+
+html body .task-board {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 9px 10px;
+    margin-bottom: 6px;
+    box-shadow: var(--shadow-xs);
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+html body .task-board:hover { border-color: var(--brand); box-shadow: var(--shadow-md); }
+
+html body .task-board-title {
+    font-size: .875rem;
+    font-weight: 510;
+    line-height: 1.4;
+    letter-spacing: -.008em;
+    color: var(--text);
+}
+
+html body .task-board-header { margin-bottom: 5px; }
+
+html body .task-board-icons,
+html body .task-board-icons-row { gap: 8px; font-size: .75rem; color: var(--text-3); }
+
+html body .task-board-assignee { font-weight: 510; color: var(--text-2); }
+
+html body .task-board-reference {
+    font-family: var(--font-mono);
+    font-size: .6875rem;
+    color: var(--text-3);
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+}
+
+/* pills */
+html body .task-tag,
+html body .task-tag[class*="color-"] {
+    display: inline-block;
+    padding: 1px 9px;
+    margin: 2px 3px 1px 0;
+    font-size: .6875rem;
+    font-weight: 510;
+    line-height: 1.6;
+    color: var(--text-3);
+    background: transparent !important;
+    border: 1px solid var(--line-strong) !important;
+    border-radius: var(--radius-pill);
+}
+
+html body .task-board-category,
+html body .task-board-category[class*="color-"] {
+    padding: 1px 8px;
+    font-size: .6875rem;
+    font-weight: 510;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+}
+
+/* ============================================================
+   10. ALERTS
+   ============================================================ */
+
+html body .alert {
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--brand);
+    border-radius: var(--radius);
+    background: var(--brand-soft);
+    color: var(--text);
+    font-size: .8125rem;
+    box-shadow: none;
+}
+
+html body .alert-error { border-left-color: var(--danger); background: rgba(239, 83, 80, .1); }
+html body .alert-success { border-left-color: var(--success); background: rgba(76, 175, 80, .1); }
+
+/* ============================================================
+   11. DROPDOWNS + PANELS
+   ============================================================ */
+
+html body .dropdown-menu {
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-lg);
+    padding: 4px;
+    overflow: hidden;
+}
+
+html body .dropdown-menu li { border: 0 !important; }
+
+html body .dropdown-menu a,
+html body .dropdown-menu li a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-2);
+    font-size: .8125rem;
+    font-weight: 510;
+    transition: background var(--transition), color var(--transition);
+}
+
+html body .dropdown-menu a:hover { background: var(--brand-soft); color: var(--brand-hover); }
+
+html body .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    box-shadow: none;
+}
+
+/* ============================================================
+   12. MODAL
+   ============================================================ */
+
+html body #modal-overlay {
+    background: rgba(10, 10, 24, .62) !important;
+    backdrop-filter: blur(2px);
+    animation: uipFade 140ms ease both;
+}
+
+html body #modal-box {
+    background: var(--surface) !important;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-xl);
+    color: var(--text);
+    animation: uipFade 120ms ease both;
+}
+
+html body #modal-header { padding: 8px 10px 0 !important; text-align: right; }
+
+html body #modal-close-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius);
+    color: var(--text-3) !important;
+    transition: background var(--transition), color var(--transition);
+}
+
+html body #modal-close-button:hover { background: var(--surface-2); color: var(--brand) !important; }
+
+html body #modal-content { padding: 2px 16px 14px !important; }
+
+html body #modal-content h2 {
+    font-size: .95rem;
+    font-weight: 590;
+    margin: 0 0 12px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--line);
+}
+
+@keyframes uipFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ============================================================
+   13. MISC
+   ============================================================ */
+
+html body .filter-helper {
+    font-size: .8125rem;
+    color: var(--text-3);
+    background: var(--surface);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+}
+
+html body .avatar { border-radius: 50%; }
+html body .tooltip, html body .tooltip-large { border-radius: var(--radius) !important; box-shadow: var(--shadow-lg); }
+html body .task-summary-container { border-radius: var(--radius-card); }
+html body .board-column-expanded-header { font-size: .75rem; }
+html body hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+    html body * { animation: none !important; transition: none !important; }
+}
+
+/* ============================================================
+   14. TASK CARDS — colour as a slim accent bar, never a painted card.
+   Kanboard's inline colour CSS (asset->colorCss()) is
+   `.task-board.color-x { background-color / border-color }` at
+   specificity 0,2,0 — hence these (0,2,2) selectors.
+   ============================================================ */
+
+html body .task-board[class*="color-"] {
+    background: var(--surface) !important;
+    color: var(--text);
+    border-color: var(--line);
+    border-left-width: 3px;
+    border-left-style: solid;
+    border-left-color: var(--line-strong);
+}
+
+/* Kanboard's seven task colours, desaturated to sit next to the gold UI */
+html body .task-board.color-yellow  { border-left-color: #e6c34a; }
+html body .task-board.color-orange  { border-left-color: #e0954f; }
+html body .task-board.color-red     { border-left-color: #d97070; }
+html body .task-board.color-pink    { border-left-color: #d98fc0; }
+html body .task-board.color-purple  { border-left-color: #a98fd9; }
+html body .task-board.color-blue    { border-left-color: #6fa8d9; }
+html body .task-board.color-teal    { border-left-color: #6ec7bb; }
+html body .task-board.color-green   { border-left-color: #6fbb6f; }
+html body .task-board.color-lime    { border-left-color: #a9c46a; }
+html body .task-board.color-brown   { border-left-color: #a98457; }
+html body .task-board.color-grey    { border-left-color: #9c9c9c; }
+
+html body .task-board .color-picker-square { border-radius: var(--radius-xs); }
+
+/* ============================================================
+   15. NO MICRO-MOTION
+   ShadcnTheme lifts .task-board on hover (translateY(-1px)) and core
+   Kanboard underlines links on hover. Neither belongs here: hover changes
+   colour and nothing moves.
+   ============================================================ */
+
+html body .task-board,
+html body .task-board:hover,
+html body .task-board:active,
+html body .btn,
+html body .btn:hover,
+html body .btn:active,
+html body .dropdown-menu,
+html body .panel,
+html body .sidebar a:hover { transform: none !important; }
+
+html body .task-board,
+html body .btn,
+html body .dropdown-menu a,
+html body .sidebar a,
+html body a { transition: color 90ms linear, background-color 90ms linear, border-color 90ms linear; }
+
+/* ============================================================
+   16. LINKS — no underline, colour instead (Kanboard core adds
+   text-decoration: underline on hover in six places)
+   ============================================================ */
+
+html body a:hover,
+html body a:focus,
+html body .views a:hover,
+html body .task-board-title a:hover,
+html body .task-board-category a:hover,
+html body .action-menu:hover,
+html body .action-menu:focus,
+html body .dropdown-menu-link-text:hover,
+html body table th a:hover,
+html body table th a:focus { text-decoration: none !important; }
+
+html body a:hover { color: var(--brand-hover); }
+
+/* ...and the gentle background shift that replaces it */
+html body .sidebar a:hover,
+html body .dropdown-menu a:hover,
+html body .views a:hover { background: var(--brand-soft); }
+
+/* ============================================================
+   17. MORE HERMES — skin elements carried over from the terminal/desktop
+   ●  tool-call marker      ┊  tool prefix / tree connector
+   gold response border     mono for ids, counts, timestamps
+   ============================================================ */
+
+/* ● marker in front of page titles and sidebar section titles */
+html body .page-header h2::before,
+html body .sidebar-title::before {
+    content: "●";
+    color: var(--brand);
+    font-size: .55em;
+    line-height: 1;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* ┊ separator before sidebar list items (Hermes' tool prefix) */
+html body .sidebar ul li a:not(:has(i))::before {
+    content: "┊";
+    color: var(--text-4);
+    margin-right: 7px;
+    font-weight: 400;
+}
+
+/* ❯ chevron slides in on dropdown hover — Hermes' menu affordance */
+html body .dropdown-menu a { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html body .dropdown-menu a::after {
+    content: "❯";
+    color: var(--brand);
+    opacity: 0;
+    font-size: .8em;
+    transition: opacity 90ms linear;
+}
+html body .dropdown-menu a:hover::after { opacity: 1; }
+
+/* active sidebar item gets a gold rail, like Hermes' status bar segment */
+html body .sidebar a.active,
+html body .sidebar li.active > a {
+    box-shadow: inset 2px 0 0 0 var(--brand);
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* counts, ids and timestamps in mono with the dim gold of the status bar */
+html body .board-column-header-task-count,
+html body .task-board-reference,
+html body .task-board-icons,
+html body .task-board-icons-row {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* gold hairline under the page header, like the response box frame */
+html body .page-header { position: sticky; }
+html body .page-header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--brand) 0%, transparent 60%);
+    opacity: .5;
+}
+
+/* panels/cards echo the response box: gold left rule on the first card only */
+html body .board-task-list .task-board:first-child { border-top-color: var(--line-strong); }
+
+/* ============================================================
+   18. ONE CONTROL STANDARD
+   Every interactive box in the chrome — view switcher, search field,
+   project picker, dropdown toggles, id chips, checkboxes, avatars —
+   gets the SAME height, border, radius, font size and vertical rhythm.
+   (Kanboard ships each of these with its own size and radius.)
+   ============================================================ */
+
+html body { --control-h: 30px; --control-gap: 6px; }
+
+/* --- view switcher (Pregled / Ploča / Lista) --- */
+html body .project-header .views-switcher-component { margin: 8px 0 10px; float: none; }
+
+html body .views {
+    display: flex;
+    align-items: center;
+    gap: var(--control-gap);
+    margin: 0 10px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 1em;
+    width: auto;
+}
+
+html body .views li { margin: 0; padding: 0; }
+
+html body .views a,
+html body .views span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--control-h);
+    padding: 0 11px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: .8125rem;
+    font-weight: 510;
+    line-height: 1;
+    text-decoration: none !important;
+    transition: color 90ms linear, background-color 90ms linear, border-color 90ms linear;
+}
+
+html body .views a:hover {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+    color: var(--brand);
+}
+
+html body .views li.active a {
+    background: var(--brand-soft);
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+/* --- search / filter field --- */
+html body form.search { display: inline-flex; align-items: center; gap: 6px; vertical-align: top; }
+
+html body form.search input[type="text"] {
+    height: var(--control-h);
+    min-width: 220px;
+    padding: 0 10px;
+    font-size: .8125rem;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+/* the little magnifier/clear icons inside the field */
+html body form.search .fa { color: var(--text-4); }
+
+/* --- project picker (custom select input) --- */
+html body .select-dropdown-input-container {
+    height: var(--control-h);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    display: inline-flex;
+    align-items: center;
+    max-width: 300px;
+    padding: 0 6px;
+}
+
+html body .select-dropdown-input-container input.select-dropdown-input {
+    height: auto;
+    margin: 0 0 0 5px;
+    padding: 0;
+    font-size: .8125rem;
+    border: none !important;
+    background: transparent;
+    box-shadow: none !important;
+}
+
+/* --- dropdown toggles sitting in the toolbar (the gear) --- */
+html body .project-header .dropdown-component,
+html body .page-header .dropdown-component { display: inline-flex; align-items: center; }
+
+/* ============================================================
+   19. LIST VIEW — one row rhythm, one header rhythm
+   ============================================================ */
+
+html body .table-list-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    min-height: 36px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    line-height: 1;
+}
+
+html body .table-list-header-count,
+html body .list-item-links a,
+html body .list-item-actions {
+    font-family: var(--font-mono);
+    font-size: .6875rem;
+    font-weight: 510;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+html body .table-list-header a,
+html body .list-item-links a {
+    text-decoration: none !important;
+    margin: 0;
+    padding: 2px 5px;
+    border-radius: var(--radius-sm);
+    transition: color 90ms linear, background-color 90ms linear;
+}
+
+html body .table-list-header a:hover,
+html body .list-item-links a:hover {
+    color: var(--brand);
+    background: var(--brand-soft);
+}
+
+html body .list-item-links,
+html body .list-item-actions { float: none; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px; }
+
+html body .list-item-links a,
+html body .list-item-actions .dropdown-component > a {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 7px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+}
+
+html body .table-list-row {
+    padding: 10px 12px;
+    line-height: 1.5;
+    animation: none !important;
+}
+
+html body .table-list-row > div { vertical-align: middle; }
+
+html body .table-list-title { font-size: .9rem; font-weight: 510; }
+
+/* --- checkbox --- */
+html body input[type="checkbox"] {
+    accent-color: var(--brand);
+    width: 15px;
+    height: 15px;
+    margin: 0 2px 0 0;
+    vertical-align: middle;
+}
+
+/* --- the "#12" id chip: fixed box, same border/radius as everything else --- */
+html body .dropdown-menu-link-icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--brand);
+    text-decoration: none !important;
+}
+
+html body .dropdown-menu-link-icon strong {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 46px;
+    height: 20px;
+    padding: 0 6px;
+    font-family: var(--font-mono);
+    font-size: .6875rem;
+    font-weight: 510;
+    letter-spacing: .02em;
+    color: var(--brand);
+    background: var(--brand-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+}
+
+/* the tiny caret inside that chip breaks the alignment — drop it */
+html body .dropdown-menu-link-icon .fa-caret-down { display: none; }
+
+html body .dropdown-menu-link-icon:hover strong { border-color: var(--brand); }
+
+/* --- avatars: one size, gold-tinted, matching the chip --- */
+html body .avatar,
+html body .table-list-row .avatar {
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+    font-size: .6875rem;
+    font-weight: 590;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--brand-soft) !important;
+    color: var(--brand) !important;
+    border: 1px solid var(--line-strong);
+}
+
+/* --- the project title row above the toolbar --- */
+html body .project-header { margin-bottom: 4px; }
+html body .project-header h2 { margin: 0; }
+
+/* ============================================================
+   20. LIST ROWS — same accent-bar treatment as the board cards,
+   and ONE chip style for every icon/label on the right
+   ============================================================ */
+
+html body .table-list-row[class*="color-"] {
+    background: transparent;
+    border-left-width: 3px;
+}
+
+/* keep Kanboard's hues but desaturated to sit beside the gold UI */
+html body .table-list-row.color-yellow { border-left-color: #e6c34a; }
+html body .table-list-row.color-orange { border-left-color: #e0954f; }
+html body .table-list-row.color-red    { border-left-color: #d97070; }
+html body .table-list-row.color-pink   { border-left-color: #d98fc0; }
+html body .table-list-row.color-purple { border-left-color: #a98fd9; }
+html body .table-list-row.color-blue   { border-left-color: #6fa8d9; }
+html body .table-list-row.color-teal   { border-left-color: #6ec7bb; }
+html body .table-list-row.color-green  { border-left-color: #6fbb6f; }
+html body .table-list-row.color-lime   { border-left-color: #a9c46a; }
+html body .table-list-row.color-brown  { border-left-color: #a98457; }
+html body .table-list-row.color-grey   { border-left-color: #9c9c9c; }
+
+html body .table-list-row:hover { background: var(--surface-2); }
+
+/* every icon/label column: one box */
+html body .task-list-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0;
+}
+
+html body .task-list-icons span:not(.ui-helper-hidden-accessible) {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+    padding: 0 5px;
+    font-family: var(--font-mono);
+    font-size: .6875rem;
+    font-weight: 510;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--text-3);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+}
+
+html body .task-list-icons span:hover { border-color: var(--line-strong); color: var(--text-2); }
+
+html body .task-list-avatars { display: inline-flex; align-items: center; gap: 6px; }
+
+html body .task-avatar-assignee {
+    font-size: .75rem;
+    font-weight: 510;
+    color: var(--text-2);
+}
+
+/* avatars: exact 20px including the border */
+html body .avatar,
+html body .table-list-row .avatar,
+
+/* ============================================================
+   21. ONE BORDER PER SURFACE
+   Kanboard renders the board and both list views as HTML tables. Every
+   cell therefore carries its own 1px cell border on top of the border of
+   the surface inside it (column, card, row) — the classic double frame.
+   Cells get no borders at all; the surface elements keep exactly one.
+   ============================================================ */
+
+/* NO id/class here on purpose: `#board td` would out-rank the column frame
+   rules below (id beats class) and silently erase them. */
+html body table td,
+html body table th {
+    border: 0 !important;
+    box-shadow: none;
+}
+
+/* the column frame is the only frame; headers are separated by a hairline */
+html body .board-column,
+html body td.board-column {
+    background: var(--column);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+}
+
+html body .board-column-header { border-bottom: 1px solid var(--line); }
+
+/* and a card keeps exactly one frame, with the colour bar on the left */
+html body .task-board {
+    border: 1px solid var(--line);
+    border-left-width: 3px;
+}
+
+/* the list views: rows are cells too */
+html body .table-list-row,
+html body .table-list-row td { border-width: 0; border-bottom-width: 1px; }
+
+
+/* ============================================================
+   22. THE BOARD COLUMN IS A TABLE PAIR, NOT A .board-column
+   Real markup:  th.board-column-header-<n>  +  td.board-column-<n>
+                   └ div.board-task-list  → div.task-board
+   So the frame is drawn on the two CELLS (one frame, shared edge), the
+   inner .board-task-list carries none, and every card keeps its own.
+   ============================================================ */
+
+html body th.board-column-header {
+    background: var(--column) !important;
+    border: 1px solid var(--line) !important;
+    border-bottom: 1px solid var(--line-strong) !important;
+    border-radius: var(--radius-card) var(--radius-card) 0 0 !important;
+    padding: 8px 12px !important;
+    vertical-align: middle;
+}
+
+html body td[class*="board-column-"] {
+    background: var(--column) !important;
+    border: 1px solid var(--line) !important;
+    border-top: 0 !important;
+    border-radius: 0 0 var(--radius-card) var(--radius-card) !important;
+    padding: 8px 8px 10px !important;
+    vertical-align: top;
+}
+
+/* the task list inside the cell is a bare canvas */
+html body .board-task-list {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    min-height: 40px;
+}
+
+/* collapsed column: header only, so it needs all four corners */
+html body .board-column-collapsed { border: 0 !important; }
+html body td[class*="board-column-"].board-column-collapsed {
+    border-radius: 0 0 var(--radius-card) var(--radius-card) !important;
+}
+
+/* swimlane strip (left rail + full-width row) keeps no frame of its own */
+html body .board-swimlane-header,
+html body .board-swimlane-header td,
+html body .board-swimlane-header th { border: 0 !important; background: transparent !important; }
+
+/* ============================================================
+   23. LOGIN FORM — the theme paints its own primary there
+   ============================================================ */
+
+html body .form-login .btn,
+html body .form-login button,
+html body .form-login button[type="submit"],
+html body .form-login input[type="submit"] {
+    background: var(--brand) !important;
+    border: 1px solid var(--brand) !important;
+    color: #1a1a2e !important;
+    box-shadow: none !important;
+}
+
+html body .form-login .btn:hover,
+html body .form-login button[type="submit"]:hover {
+    background: var(--brand-hover) !important;
+    border-color: var(--brand-hover) !important;
+}
+
+html body .form-login input[type="checkbox"]:checked {
+    background-color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+
+html body .form-login input:focus {
+    border-color: var(--brand) !important;
+    box-shadow: 0 0 0 3px var(--ring) !important;
+}
+
+html body .form-login .reset-password a:hover { color: var(--brand) !important; text-decoration: none !important; }
+
+html body .avatar-letter {
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    line-height: 18px;
+    font-size: .625rem;
+    font-weight: 590;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--brand-soft) !important;
+    color: var(--brand) !important;
+    border: 1px solid var(--line-strong);
+}
+
+
+
+/* small refinements: quiet icons, plain time chips */
+html body .board-column-header .fa,
+html body .board-column-header .board-column-expand,
+html body .board-column-header .board-column-collapse { color: var(--text-4); }
+
+html body .task-board .task-time-estimated,
+html body .task-board .task-time-spent,
+html body .task-board .task-board-icons span[title*="P"] {
+    font-family: var(--font-mono);
+    font-size: .6875rem;
+    color: var(--text-4);
+    background: transparent;
+    border: 0;
+    padding: 0 2px;
+}
+
+
+
+/* the project header strip gets the skin's gold response border */
+html body .project-header,
+html body .project-overview { border-radius: var(--radius-card); }

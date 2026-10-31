@@ -32,3 +32,12 @@
 <IfModule pagespeed_module>
     ModPagespeed Off
 </IfModule>
+
+# ---------------------------------------------------------------------------
+# When this tree is uploaded as a git checkout (fork deployment), the VCS
+# metadata must never be served: .git holds the full source history.
+# ---------------------------------------------------------------------------
+<IfModule mod_alias.c>
+    RedirectMatch 404 /\.git(/.*)?$
+    RedirectMatch 404 /\.env$
+</IfModule>

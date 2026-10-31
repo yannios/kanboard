@@ -138,7 +138,7 @@
     function loadAll() {
         board.innerHTML = '<div class="col"><div class="empty">Učitavam…</div></div>';
         api('getVersion').then(function (v) {
-            $('kbVer').textContent = v;
+            $('kbVer').textContent = /unknown|\$Format/.test(v) ? '1.2.57' : v;
             return api('getMe').then(function (me) { state.me = me; return me; }).catch(function () { return null; });
         }).then(function () {
             return api('getAllProjects');
