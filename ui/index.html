@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="hr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban UI</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ============ SIDEBAR ============ -->
+<aside class="side">
+  <div class="side-top">
+    <button class="ws" id="wsBtn">
+      <span class="ws-logo">◧</span>
+      <span class="ws-name">Kanboard</span>
+      <span class="chev">⌄</span>
+    </button>
+    <button class="icon-btn" title="Obavijesti">◔</button>
+  </div>
+
+  <nav class="nav">
+    <a href="#" class="nav-item" data-nav="home"><span class="ni">⌂</span> Početna</a>
+    <a href="#" class="nav-item is-active" data-nav="board"><span class="ni">▤</span> Zadaci</a>
+    <a href="#" class="nav-item" data-nav="mine"><span class="ni">◉</span> Moji zadaci <span class="badge" id="mineCount">0</span></a>
+    <a href="#" class="nav-item" data-nav="members"><span class="ni">◍</span> Članovi</a>
+  </nav>
+
+  <div class="side-label">Projekti <button class="icon-btn sm" id="addProjectHint" title="Projekte dodaješ u Kanboardu">+</button></div>
+  <div class="projects" id="projects"></div>
+
+  <div class="side-bottom">
+    <div class="side-label" style="margin:.2rem 0 .2rem">Veličina teksta</div>
+    <div class="fsmenu" id="fsmenu">
+      <button data-fs="sm">Aa</button>
+      <button data-fs="md" class="is-active">Aa</button>
+      <button data-fs="lg">Aa</button>
+      <button data-fs="xl">Aa</button>
+    </div>
+    <button class="nav-item" id="themeBtn"><span class="ni">◐</span> <span id="themeLabel">Svijetla tema</span></button>
+    <button class="nav-item" id="authBtn"><span class="ni">⚙</span> Povezivanje</button>
+    <div class="ver">Kanboard API · v<span id="kbVer">?</span></div>
+  </div>
+</aside>
+
+<!-- ============ MAIN ============ -->
+<main class="main">
+  <header class="topbar">
+    <button class="icon-btn" id="menuBtn" title="Izbornik">☰</button>
+    <div class="crumbs">
+      <span class="proj-icon" id="projIcon">◻</span>
+      <strong id="projName">—</strong>
+      <span class="chev">⌄</span>
+    </div>
+    <div class="topbar-actions">
+      <input class="search" id="search" type="search" placeholder="Traži…">
+      <button class="icon-btn" id="sortBtn" title="Sortiraj">⇅</button>
+    </div>
+  </header>
+
+  <div class="viewbar">
+    <div class="tabs">
+      <button class="tab is-active" data-view="board">Zadaci</button>
+      <button class="tab" data-view="list">Lista</button>
+      <button class="tab" data-view="backlog">Zaostali</button>
+    </div>
+    <span class="count" id="taskCount"></span>
+  </div>
+
+  <section class="board" id="board"></section>
+  <section class="listview" id="listview" hidden></section>
+</main>
+
+<!-- ============ TASK DRAWER ============ -->
+<div class="drawer-wrap" id="drawerWrap" hidden>
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer">
+
+    <div class="drawer-top">
+      <span class="idtag" id="dId">—</span>
+      <div class="grow"></div>
+      <button class="icon-btn sm" id="dClose" title="Zatvori">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="drawer-main">
+        <textarea class="title-input" id="dTitle" rows="1" placeholder="Naslov zadatka"></textarea>
+
+        <div class="field">
+          <label>Opis</label>
+          <textarea id="dDesc" rows="4" placeholder="Dodaj opis…"></textarea>
+        </div>
+
+        <div class="section">
+          <div class="section-h">
+            <h4>Podzadaci <span class="muted" id="dSubCount"></span></h4>
+            <button class="icon-btn sm" id="dAddSub">+</button>
+          </div>
+          <div class="subtasks" id="dSubtasks"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-h"><h4>Aktivnost</h4></div>
+          <div class="comments" id="dComments"></div>
+          <div class="comment-box">
+            <textarea id="dCommentInput" rows="2" placeholder="Napiši komentar…"></textarea>
+            <button class="btn" id="dCommentSend">Pošalji</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="drawer-props">
+        <div class="prop"><span>Status</span><button class="chip" id="pColumn">—</button></div>
+        <div class="prop"><span>Prioritet</span><button class="chip" id="pPriority">—</button></div>
+        <div class="prop"><span>Datum</span><input type="date" id="pDue"></div>
+        <div class="prop"><span>Kategorija</span><button class="chip" id="pCategory">—</button></div>
+        <div class="prop"><span>Boja</span><button class="chip" id="pColor">—</button></div>
+        <div class="prop"><span>Projekt</span><span class="chip flat" id="pProject">—</span></div>
+        <div class="drawer-actions">
+          <button class="btn danger" id="dDelete">Obriši zadatak</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ============ AUTH DIALOG ============ -->
+<div class="modal-wrap" id="authWrap" hidden>
+  <div class="scrim" id="authScrim"></div>
+  <div class="modal">
+    <h3>Povezivanje s Kanboardom</h3>
+    <p class="muted">Sve što vidiš dolazi iz Kanboarda preko njegovog API-ja. Podaci se spremaju u tvoj preglednik.</p>
+    <div class="field"><label>Korisnik</label><input id="aUser" autocomplete="username"></div>
+    <div class="field"><label>API token</label><input id="aToken" autocomplete="off"></div>
+    <p class="hint">Token se generira u Kanboardu: <em>Moj profil → API pristup</em>. Adresa API-ja: <code id="aEndpoint"></code></p>
+    <div class="modal-actions">
+      <button class="btn" id="authCancel">Odustani</button>
+      <button class="btn primary" id="authSave">Spoji se</button>
+    </div>
+  </div>
+</div>
+
+<div class="boardside-scrim" id="sideScrim" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
