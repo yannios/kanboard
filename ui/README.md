@@ -55,6 +55,13 @@ izgleda isto kao i prije.
   dolje se pojavi traka s brojem odabranih i akcijama *Premjesti u kolonu*,
   *Dodijeli korisniku*, *Obriši*.
 
+## Napomene o bazi (SQLite)
+
+- Kanboardov spremnik sesija piše u bazu, a SQLite nema red za čekanje na zaključavanje.
+  `login.php` i `proxy.php` zato postavljaju `PRAGMA busy_timeout = 5000`, a UI drži
+  najviše 4 API poziva u letu. Bez toga paralelni pozivi vraćaju prazan odgovor (HTTP 500).
+- Pri brisanju datuma početka pošalji **prazan string**, ne `0` — Kanboard `0` odbija.
+
 ## Prijava
 
 UI se prijavljuje **korisničkim imenom i lozinkom sa Kanboard računa** — dvije male
@@ -88,6 +95,18 @@ projektu (kod projekta, naziv, broj zadataka). Redak prikazuje kolonu, rok i
 kategoriju; klik **prebaci na taj projekt i otvori zadatak**. Filtri i pretraga
 vrijede i ovdje, a **Izvezi CSV** sprema trenutni prikaz (sve projekte ili samo
 otvoreni) — `;` kao separator i BOM, da Excel otvori čitljivo.
+
+## Kartica zadatka
+
+Osim naslova, opisa i osnovnih svojstava, kartica sada ima:
+
+- **Oznake** — čipovi s ✕ za uklanjanje i polje „dodaj oznaku + Enter"; nova
+  oznaka se u Kanboardu stvori sama, a popis se odmah sprema na zadatak.
+- **Početak** — datum početka rada (Kanboard ga koristi za vremensku crtu).
+- **Vrijeme** — potrošeno / procijenjeno u satima (0,25 korak); Kanboard to čuva
+  u sekundama, a UI prikazuje sate.
+- **Komentari** — vlastite komentare možeš urediti (✎) i obrisati (✕); tuđe ne,
+  jer to brani i Kanboard.
 
 ## Ispis / PDF
 

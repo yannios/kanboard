@@ -128,8 +128,14 @@
         </div>
 
         <div class="section">
-          <div class="section-h">
-            <h4>Podzadaci <span class="muted" id="dSubCount"></span></h4>
+          <div class="section">
+            <div class="section-h"><h4>Oznake <span class="muted" id="dTagCount"></span></h4></div>
+            <div class="tags" id="dTags"></div>
+            <input class="taginput" id="dTagInput" autocomplete="off" placeholder="dodaj oznaku + Enter">
+          </div>
+
+          <div class="section">
+            <div class="section-h"><h4>Podzadaci <span class="muted" id="dSubCount"></span></h4>
             <button class="icon-btn sm" id="dAddSub">+</button>
           </div>
           <div class="subtasks" id="dSubtasks"></div>
@@ -166,6 +172,13 @@
         <div class="prop"><span>Status</span><button class="chip" id="pColumn">—</button></div>
         <div class="prop"><span>Prioritet</span><button class="chip" id="pPriority">—</button></div>
         <div class="prop"><span>Datum</span><input type="date" id="pDue"></div>
+        <div class="prop"><span>Početak</span><input type="date" id="pStart"></div>
+        <div class="prop"><span>Vrijeme</span><span class="timefield">
+          <input type="number" id="pTimeSpent" min="0" step="0.25" placeholder="0" title="Potrošeno (sati)">
+          <span class="sep">/</span>
+          <input type="number" id="pTimeEst" min="0" step="0.25" placeholder="0" title="Procijenjeno (sati)">
+          <span class="unit">h</span>
+        </span></div>
         <div class="prop"><span>Dodijeljeno</span><button class="chip" id="pOwner">—</button></div>
         <div class="prop"><span>Kategorija</span><button class="chip" id="pCategory">—</button></div>
         <div class="prop"><span>Boja</span><button class="chip" id="pColor">—</button></div>

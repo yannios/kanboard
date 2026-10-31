@@ -96,7 +96,28 @@
     }
 
     /* ---------------- API ---------------- */
+    // SQLite podnosi malo paralelnih upisa; drži najviše 4 zahtjeva u letu.
+    var apiQueue = [], apiActive = 0, API_MAX = 4;
+
     function api(method, params) {
+        return new Promise(function (resolve, reject) {
+            apiQueue.push({ method: method, params: params, resolve: resolve, reject: reject });
+            pumpApi();
+        });
+    }
+
+    function pumpApi() {
+        while (apiActive < API_MAX && apiQueue.length) {
+            var job = apiQueue.shift();
+            apiActive++;
+            sendApi(job.method, job.params).then(job.resolve, job.reject).then(function () {
+                apiActive--;
+                pumpApi();
+            });
+        }
+    }
+
+    function sendApi(method, params) {
         var headers = { 'Content-Type': 'application/json' };
         var url = ENDPOINT;
 
@@ -562,6 +583,9 @@
             $('pCategory').textContent = categoryName(t.category_id) || 'bez kategorije';
             $('pColor').innerHTML = '<span class="dot" style="background:' + (COLOR_HEX[t.color_id] || 'var(--text-3)') + '"></span>' + (t.color_id || 'grey');
             $('pDue').value = t.date_due ? new Date(t.date_due * 1000).toISOString().slice(0, 10) : '';
+            $('pStart').value = t.date_started ? new Date(t.date_started * 1000).toISOString().slice(0, 10) : '';
+            $('pTimeSpent').value = t.time_spent ? +(t.time_spent / 3600).toFixed(2) : '';
+            $('pTimeEst').value = t.time_estimated ? +(t.time_estimated / 3600).toFixed(2) : '';
             $('pOwner').textContent = ownerName(t.owner_id) || 'nitko';
             $('drawerWrap').hidden = false;
             autosize($('dTitle'));
@@ -570,7 +594,8 @@
                 api('getAllComments', { task_id: t.id }).catch(function () { return []; }),
                 api('getAllTaskFiles', { task_id: t.id }).catch(function () { return []; }),
                 api('getAllTaskLinks', { task_id: t.id }).catch(function () { return []; }),
-                state.linkTypes.length ? Promise.resolve(state.linkTypes) : api('getAllLinks').catch(function () { return []; })
+                state.linkTypes.length ? Promise.resolve(state.linkTypes) : api('getAllLinks').catch(function () { return []; }),
+                api('getTaskTags', { task_id: t.id }).catch(function () { return {}; })
             ]);
         }).then(function (res) {
             renderSubtasks(res[0] || []);
@@ -578,6 +603,7 @@
             renderFiles(res[2] || []);
             state.linkTypes = res[4] || [];
             renderLinks(res[3] || []);
+            renderTags(res[5] || {});
         }).catch(function (e) { if (!silent) fail(e); localStorage.removeItem('kbui.task'); });
     }
 
@@ -607,12 +633,53 @@
     }
 
     function renderComments(cs) {
+        var myId = state.me && state.me.id;
         $('dComments').innerHTML = cs.map(function (c) {
-            return '<div class="comment"><span class="assignee">' + initials(c.username || c.name) + '</span>' +
+            var mine = myId && Number(c.user_id) === Number(myId);
+            return '<div class="comment" data-comment="' + c.id + '">' +
+                '<span class="assignee">' + initials(c.username || c.name) + '</span>' +
                 '<div class="body"><div class="who">' + esc(c.name || c.username || 'korisnik') +
-                ' · ' + new Date((c.date_creation || 0) * 1000).toLocaleString('hr-HR') + '</div>' +
-                esc(c.comment || '') + '</div></div>';
+                ' · ' + new Date((c.date_creation || 0) * 1000).toLocaleString('hr-HR') +
+                (mine ? '<span class="cbtns">' +
+                    '<button class="icon-btn sm" data-cedit="' + c.id + '" title="Uredi komentar">✎</button>' +
+                    '<button class="icon-btn sm" data-cdel="' + c.id + '" title="Obriši komentar">✕</button>' +
+                    '</span>' : '') +
+                '</div>' +
+                '<div class="ctext">' + esc(c.comment || '') + '</div></div></div>';
         }).join('') || '<div class="muted" style="font-size:12.5px">Još nema komentara.</div>';
+    }
+
+    function editComment(id) {
+        var box = document.querySelector('[data-comment="' + id + '"]');
+        if (!box) return;
+        var text = box.querySelector('.ctext');
+        var current = text.textContent;
+        text.innerHTML = '<textarea class="cedit" rows="3">' + esc(current) + '</textarea>' +
+            '<div class="cedit-actions"><button class="btn" data-ccancel="1">Odustani</button>' +
+            '<button class="btn primary" data-csave="' + id + '">Spremi</button></div>';
+        var ta = text.querySelector('textarea');
+        if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    }
+
+    function saveComment(id) {
+        var ta = document.querySelector('[data-comment="' + id + '"] textarea');
+        if (!ta) return;
+        var content = ta.value.trim();
+        if (!content) { toast('Komentar ne može biti prazan.'); return; }
+        api('updateComment', { id: id, content: content }).then(function (ok) {
+            if (!ok) { toast('Ne možeš urediti tuđi komentar.'); return; }
+            toast('Komentar spremljen');
+            openTask(state.task.id, true);
+        }).catch(fail);
+    }
+
+    function deleteComment(id) {
+        if (!confirm('Obrisati komentar?')) return;
+        api('removeComment', { comment_id: id }).then(function (ok) {
+            if (!ok) { toast('Ne možeš obrisati tuđi komentar.'); return; }
+            toast('Komentar obrisan');
+            openTask(state.task.id, true);
+        }).catch(fail);
     }
 
     function closeDrawer() {
@@ -820,6 +887,42 @@
             // Kanboard za nedovoljna prava vraća 403 "Forbidden"
             setReadonly(e && e.code === 403 || /not allowed|permission|dopu|denied|forbidden/i.test(msg));
         });
+    }
+
+    /* ---------------- tags ---------------- */
+    function renderTags(obj) {
+        state.tags = obj || {};
+        var names = Object.keys(state.tags).map(function (k) { return state.tags[k]; });
+        $('dTagCount').textContent = names.length ? names.length : '';
+        $('dTags').innerHTML = names.map(function (n) {
+            return '<span class="tag">' + esc(n) + '<button data-untag="' + esc(n) + '" title="Ukloni oznaku">✕</button></span>';
+        }).join('') || '<span class="muted" style="font-size:.78rem">Nema oznaka.</span>';
+    }
+
+    function tagNames() {
+        return Object.keys(state.tags || {}).map(function (k) { return state.tags[k]; });
+    }
+
+    function saveTags(names) {
+        if (!state.task) return;
+        api('updateTask', { id: state.task.id, tags: names }).then(function () {
+            return api('getTaskTags', { task_id: state.task.id });
+        }).then(function (t) {
+            renderTags(t || {});
+            renderBoard(); renderList();
+        }).catch(fail);
+    }
+
+    function addTag(name) {
+        name = (name || '').trim();
+        if (!name) return;
+        var names = tagNames();
+        if (names.some(function (n) { return n.toLowerCase() === name.toLowerCase(); })) {
+            $('dTagInput').value = '';
+            return;
+        }
+        saveTags(names.concat([name]));
+        $('dTagInput').value = '';
     }
 
     /* ---------------- related tasks ---------------- */
@@ -1327,6 +1430,39 @@
         $('scrim').addEventListener('click', closeDrawer);
         $('dTitle').addEventListener('input', function (e) { autosize(e.target); saveTask({ title: e.target.value }); });
         $('dDesc').addEventListener('change', function (e) { saveTask({ description: e.target.value }); });
+        $('pStart').addEventListener('change', function (e) {
+            var v = e.target.value;
+            // Kanboard odbija 0 kao datum; prazan string briše datum početka
+            saveTask({ date_started: v || '' }).then(function () { openTask(state.task.id, true); });
+        });
+        ['pTimeSpent', 'pTimeEst'].forEach(function (id) {
+            $(id).addEventListener('change', function (e) {
+                var hours = parseFloat(e.target.value);
+                if (isNaN(hours) || hours < 0) hours = 0;
+                var patch = {};
+                patch[id === 'pTimeSpent' ? 'time_spent' : 'time_estimated'] = Math.round(hours * 3600);
+                saveTask(patch);
+            });
+        });
+        $('dTagInput').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); addTag(e.target.value); }
+        });
+        $('dTags').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-untag]');
+            if (!b) return;
+            var name = b.dataset.untag;
+            saveTags(tagNames().filter(function (n) { return n !== name; }));
+        });
+        $('dComments').addEventListener('click', function (e) {
+            var ed = e.target.closest('[data-cedit]');
+            if (ed) { editComment(Number(ed.dataset.cedit)); return; }
+            var del = e.target.closest('[data-cdel]');
+            if (del) { deleteComment(Number(del.dataset.cdel)); return; }
+            var sv = e.target.closest('[data-csave]');
+            if (sv) { saveComment(Number(sv.dataset.csave)); return; }
+            var cn = e.target.closest('[data-ccancel]');
+            if (cn) { openTask(state.task.id, true); return; }
+        });
         $('pDue').addEventListener('change', function (e) {
             saveTask({ date_due: e.target.value || '' });
         });

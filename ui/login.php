@@ -28,6 +28,17 @@ require __DIR__ . '/../app/common.php';
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
+// SQLite has no write lock queue by default: concurrent requests make
+// "database is locked" fatal (Kanboard's session handler writes rows too).
+// Five seconds of waiting turns a hard failure into a slow request.
+if (defined('DB_DRIVER') && DB_DRIVER === 'sqlite') {
+    try {
+        $container['db']->getConnection()->exec('PRAGMA busy_timeout = 5000');
+    } catch (Throwable $e) {
+        // tuning knob only -- never fail the request because of it
+    }
+}
+
 use Kanboard\Core\Session\SessionManager;
 
 header('Content-Type: application/json; charset=utf-8');

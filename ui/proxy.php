@@ -20,6 +20,17 @@ require __DIR__ . '/../app/common.php';
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
+// SQLite has no write lock queue by default: concurrent requests make
+// "database is locked" fatal (Kanboard's session handler writes rows too).
+// Five seconds of waiting turns a hard failure into a slow request.
+if (defined('DB_DRIVER') && DB_DRIVER === 'sqlite') {
+    try {
+        $container['db']->getConnection()->exec('PRAGMA busy_timeout = 5000');
+    } catch (Throwable $e) {
+        // tuning knob only -- never fail the request because of it
+    }
+}
+
 use Kanboard\Core\Session\SessionManager;
 
 function kbui_rpc_error(int $status, int $code, string $message): void
@@ -63,8 +74,11 @@ $userId = (int) ($_SESSION['kbui_uid'] ?? 0);
 $token = (string) ($_SESSION['kbui_token'] ?? '');
 
 if ($userId <= 0 || $token === '') {
+    @file_put_contents(__DIR__ . '/_debug.log', date('H:i:s') . " 401 sid=" . session_id() .
+        " keys=" . implode(',', array_keys($_SESSION)) . " cookies=" . json_encode(array_keys($_COOKIE)) . "\n", FILE_APPEND);
     kbui_rpc_error(401, 401, 'Not logged in');
 }
+@file_put_contents(__DIR__ . '/_debug.log', date('H:i:s') . " OK sid=" . session_id() . " uid=$userId\n", FILE_APPEND);
 
 $user = $container['userModel']->getById($userId);
 
@@ -72,6 +86,11 @@ if (empty($user) || empty($user['is_active'])) {
     unset($_SESSION['kbui_uid'], $_SESSION['kbui_token']);
     kbui_rpc_error(401, 401, 'Not logged in');
 }
+
+// Close the session before doing any work: Kanboard's session handler does not
+// lock rows, so a request that keeps the session open can write back a stale
+// copy and wipe the login (many parallel API calls do exactly that).
+session_write_close();
 
 // Kanboard's JSON-RPC server reads PHP_AUTH_* and the body from php://input.
 $_SERVER['PHP_AUTH_USER'] = $user['username'];
