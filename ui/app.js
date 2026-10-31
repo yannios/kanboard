@@ -268,8 +268,26 @@
             var t = localStorage.getItem('kbui.task');
             if (t) openTask(Number(t), true);
         }).catch(function (e) {
+            // Prijavljen korisnik bez ijednog projekta nije greška prijave:
+            // pokaži uputu umjesto da ga vrati na login.
+            if (state.mode === 'token' && !state.projects.length) {
+                fail(e);
+                openAuth();
+                return;
+            }
+
+            if (!(state.projects || []).length) {
+                board.innerHTML = '<div class="col"><div class="empty">Još nema projekata.<br>' +
+                    'Napravi prvi projekt u Kanboardu: <a href="../" target="_blank" rel="noopener">otvori Kanboard</a>, ' +
+                    'pa osvježi ovu stranicu.</div></div>';
+                $('taskCount').textContent = '';
+                $('projName').textContent = 'bez projekta';
+                $('projIcon').textContent = '◻';
+                renderProjects();
+                return;
+            }
+
             fail(e);
-            if (!state.projects.length) openAuth();
         });
     }
 
