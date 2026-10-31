@@ -80,6 +80,15 @@
   <section class="board" id="board"></section>
   <section class="listview" id="listview" hidden></section>
 
+  <section class="agg" id="overdueView" hidden>
+    <div class="agg-tools">
+      <span class="muted" id="overdueInfo"></span>
+      <button class="btn" id="overdueToggle">Prikaži zatvorene</button>
+      <button class="btn" id="overdueRefresh">Osvježi</button>
+    </div>
+    <div class="agg-body" id="overdueList"></div>
+  </section>
+
   <section class="agg" id="aggview" hidden>
     <div class="agg-tools">
       <span class="muted" id="aggInfo"></span>
@@ -172,8 +181,15 @@
       <div class="drawer-props">
         <div class="prop"><span>Status</span><button class="chip" id="pColumn">—</button></div>
         <div class="prop"><span>Prioritet</span><button class="chip" id="pPriority">—</button></div>
-        <div class="prop"><span>Datum</span><input type="date" id="pDue"></div>
-        <div class="prop"><span>Početak</span><input type="date" id="pStart"></div>
+        <div class="prop"><span>Datum</span><span class="datefield">
+          <input type="text" id="pDue" inputmode="numeric" maxlength="10" placeholder="dd.mm.yyyy" autocomplete="off">
+          <button class="icon-btn sm" id="pDuePick" title="Odaberi iz kalendara">▦</button>
+        </span></div>
+        <div class="prop"><span>Početak</span><span class="datefield">
+          <input type="text" id="pStart" inputmode="numeric" maxlength="10" placeholder="dd.mm.yyyy" autocomplete="off">
+          <button class="icon-btn sm" id="pStartPick" title="Odaberi iz kalendara">▦</button>
+        </span>
+        <input type="date" id="pDateNative" class="native-date" tabindex="-1" aria-hidden="true"></div>
         <div class="prop"><span>Vrijeme</span><span class="timefield">
           <input type="number" id="pTimeSpent" min="0" step="0.25" placeholder="0" title="Potrošeno (sati)">
           <span class="sep">/</span>
@@ -185,6 +201,9 @@
         <div class="prop"><span>Boja</span><button class="chip" id="pColor">—</button></div>
         <div class="prop"><span>Projekt</span><span class="chip flat" id="pProject">—</span></div>
         <div class="drawer-actions">
+          <button class="btn" id="dDup">Kopiraj u projekt…</button>
+          <button class="btn" id="dMove">Premjesti u projekt…</button>
+          <button class="btn" id="dCloseTask">Zatvori zadatak</button>
           <button class="btn danger" id="dDelete">Obriši zadatak</button>
         </div>
       </div>

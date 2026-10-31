@@ -605,11 +605,12 @@
             $('pPriority').textContent = PRIORITY[t.priority || 0] || 'Nizak';
             $('pCategory').textContent = categoryName(t.category_id) || 'bez kategorije';
             $('pColor').innerHTML = '<span class="dot" style="background:' + (COLOR_HEX[t.color_id] || 'var(--text-3)') + '"></span>' + (t.color_id || 'grey');
-            $('pDue').value = t.date_due ? new Date(t.date_due * 1000).toISOString().slice(0, 10) : '';
-            $('pStart').value = t.date_started ? new Date(t.date_started * 1000).toISOString().slice(0, 10) : '';
+            $('pDue').value = fmtDate(t.date_due);
+            $('pStart').value = fmtDate(t.date_started);
             $('pTimeSpent').value = t.time_spent ? +(t.time_spent / 3600).toFixed(2) : '';
             $('pTimeEst').value = t.time_estimated ? +(t.time_estimated / 3600).toFixed(2) : '';
             $('pOwner').textContent = ownerName(t.owner_id) || 'nitko';
+            $('dCloseTask').textContent = t.is_active ? 'Zatvori zadatak' : 'Ponovno otvori';
             $('drawerWrap').hidden = false;
             autosize($('dTitle'));
             return Promise.all([
@@ -662,7 +663,7 @@
             return '<div class="comment" data-comment="' + c.id + '">' +
                 '<span class="assignee">' + initials(c.username || c.name) + '</span>' +
                 '<div class="body"><div class="who">' + esc(c.name || c.username || 'korisnik') +
-                ' · ' + new Date((c.date_creation || 0) * 1000).toLocaleString('hr-HR') +
+                ' · ' + fmtDateTime(c.date_creation) +
                 (mine ? '<span class="cbtns">' +
                     '<button class="icon-btn sm" data-cedit="' + c.id + '" title="Uredi komentar">✎</button>' +
                     '<button class="icon-btn sm" data-cdel="' + c.id + '" title="Obriši komentar">✕</button>' +
@@ -912,6 +913,90 @@
         });
     }
 
+    /* ---------------- overdue (all projects) ---------------- */
+    var overdueMode = 'overdue';   // 'overdue' | 'closed'
+
+    function renderOverdue() {
+        $('overdueList').innerHTML = '<div class="empty">Učitavam…</div>';
+        $('overdueToggle').textContent = overdueMode === 'closed' ? 'Prikaži zaostale' : 'Prikaži zatvorene';
+
+        if (overdueMode === 'closed') { renderClosed(); return; }
+
+        api('getOverdueTasks').then(function (tasks) {
+            var list = (tasks || []).filter(function (t) { return t.is_active !== 0; });
+            $('overdueInfo').textContent = list.length + (list.length === 1 ? ' zadatak' : ' zadataka') + ' preko roka';
+            if (!list.length) {
+                $('overdueList').innerHTML = '<div class="empty">Nema zadataka preko roka. 👍</div>';
+                return;
+            }
+            list.sort(function (a, b) { return (a.date_due || 0) - (b.date_due || 0); });
+            $('overdueList').innerHTML = list.map(function (t) {
+                var due = dueInfo(t.date_due);
+                return '<div class="agg-row" data-task="' + t.id + '" data-project="' + t.project_id + '">' +
+                    '<span class="card-id">' + esc(ref({ id: t.project_id, name: t.project_name }) + '-' + t.id) + '</span>' +
+                    '<span class="agg-title">' + esc(t.title) + '</span>' +
+                    '<span class="agg-col">' + esc(t.project_name || '') + '</span>' +
+                    (t.column_title ? '<span class="agg-col">' + esc(t.column_title) + '</span>' : '') +
+                    (due ? '<span class="chip mono due-over">' + ICO.due + ' ' + fmtDate(t.date_due) + ' · ' + due.text + '</span>' : '') +
+                    '</div>';
+            }).join('');
+        }).catch(function (e) {
+            $('overdueList').innerHTML = '<div class="empty">Greška: ' + esc(e.message || e) + '</div>';
+        });
+    }
+
+    function renderClosed() {
+        var projects = state.projects || [];
+        Promise.all(projects.map(function (p) {
+            return api('getAllTasks', { project_id: p.id, status_id: 0 }).then(function (ts) {
+                return (ts || []).map(function (t) { return { t: t, p: p }; });
+            }).catch(function () { return []; });
+        })).then(function (chunks) {
+            var all = [];
+            chunks.forEach(function (c) { all = all.concat(c); });
+            $('overdueInfo').textContent = all.length + (all.length === 1 ? ' zatvoren zadatak' : ' zatvorenih zadataka');
+            $('overdueList').innerHTML = all.length ? all.map(function (x) {
+                return '<div class="agg-row" data-task="' + x.t.id + '" data-project="' + x.p.id + '">' +
+                    '<span class="card-id">' + esc(ref(x.p) + '-' + x.t.id) + '</span>' +
+                    '<span class="agg-title">' + esc(x.t.title) + '</span>' +
+                    '<span class="agg-col">' + esc(x.p.name) + '</span>' +
+                    '<span class="chip mono">' + (x.t.date_completed ? fmtDate(x.t.date_completed) : 'zatvoreno') + '</span>' +
+                    '</div>';
+            }).join('') : '<div class="empty">Nema zatvorenih zadataka.</div>';
+        }).catch(function (e) {
+            $('overdueList').innerHTML = '<div class="empty">Greška: ' + esc(e.message || e) + '</div>';
+        });
+    }
+
+    function setTaskClosed(close) {
+        if (!state.task) return;
+        var call = close ? 'closeTask' : 'openTask';
+        api(call, { task_id: state.task.id }).then(function () {
+            toast(close ? 'Zadatak zatvoren' : 'Zadatak ponovno otvoren');
+            closeDrawer();
+            loadAll();
+            if (state.view === 'backlog') renderOverdue();
+        }).catch(fail);
+    }
+
+    function moveOrCopy(mode) {
+        if (!state.task) return;
+        var items = (state.projects || []).filter(function (p) {
+            return mode === 'copy' || p.id !== state.project.id;
+        }).map(function (p) { return { label: p.name, meta: ref(p), value: p.id }; });
+        if (!items.length) { toast('Nema drugog projekta.'); return; }
+
+        openPop($(mode === 'copy' ? 'dDup' : 'dMove'), items, function (it) {
+            var call = mode === 'copy' ? 'duplicateTaskToProject' : 'moveTaskToProject';
+            api(call, { task_id: state.task.id, project_id: it.value }).then(function (res) {
+                if (!res) throw new Error('Kanboard nije dovršio radnju.');
+                toast(mode === 'copy' ? 'Kopirano u „' + it.label + '"' : 'Premješteno u „' + it.label + '"');
+                closeDrawer();
+                loadAll();
+            }).catch(fail);
+        });
+    }
+
     /* ---------------- project management ---------------- */
     var pmTab = 'cols';
     var PM_ROLES = { 'project-manager': 'Voditelj', 'project-member': 'Član', 'project-viewer': 'Gledatelj' };
@@ -934,12 +1019,32 @@
             if (!id) throw new Error('Projekt nije stvoren.');
             localStorage.setItem('kbui.project', id);
             toast('Projekt „' + name + '" stvoren');
-            return loadAll();
+            return localizeColumns(id).then(function () { return loadAll(); });
         }).catch(function (e) {
             $('newProjSave').disabled = false;
             $('npError').textContent = (e && e.message) || 'Greška';
             $('npError').hidden = false;
         });
+    }
+
+    // Kanboard standardne kolone imenuje prema jeziku aplikacije; ako su ostale
+    // engleske, preimenuj ih na hrvatsko da ploča ne miješa jezike.
+    var COL_TR = {
+        'Backlog': 'Nadolazeće',
+        'Ready': 'Spremno',
+        'Work in progress': 'U radu',
+        'Done': 'Gotovo'
+    };
+
+    function localizeColumns(projectId) {
+        return api('getColumns', { project_id: projectId }).then(function (cols) {
+            var jobs = (cols || []).filter(function (c) {
+                return Object.prototype.hasOwnProperty.call(COL_TR, c.title);
+            }).map(function (c) {
+                return api('updateColumn', { column_id: c.id, title: COL_TR[c.title] });
+            });
+            return Promise.all(jobs);
+        }).catch(function () {});
     }
 
     function openProjectSettings() {
@@ -974,7 +1079,9 @@
                         '<button class="icon-btn sm" data-act="coledit" title="Preimenuj">✎</button>' +
                         '<button class="icon-btn sm" data-act="coldel" title="Obriši kolonu">✕</button>' +
                         '</div>';
-                }).join('') + '<div class="pm-add"><input id="pmColName" placeholder="nova kolona…"><button class="btn primary" data-act="coladd">Dodaj</button></div>';
+                }).join('') + '<div class="pm-add"><input id="pmColName" placeholder="nova kolona…"><button class="btn primary" data-act="coladd">Dodaj</button></div>' +
+                    '<p class="pm-note">Ako su nazivi ostali engleski (Backlog, Ready, Work in progress, Done), ' +
+                    '<button class="linkbtn" data-act="collocalize">preimenuj ih na hrvatski</button>.</p>';
             }).catch(pmErr);
             return;
         }
@@ -1078,6 +1185,14 @@
     function pmAction(act, row) {
         var pid = state.project.id;
 
+        if (act === 'collocalize') {
+            localizeColumns(pid).then(function () {
+                toast('Nazivi kolona postavljeni na hrvatski');
+                renderPm();
+                loadAll();
+            });
+            return;
+        }
         if (act === 'coladd') {
             var name = $('pmColName').value.trim();
             if (!name) return;
@@ -1363,9 +1478,62 @@
         }, 30);
     }
 
+    // Svi datumi u UI-u su dd.mm.yyyy, neovisno o jeziku preglednika.
+    function fmtDate(ts) {
+        if (!ts) return '';
+        var d = new Date(ts * 1000);
+        return pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.' + d.getFullYear();
+    }
+
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    function fmtDateTime(ts) {
+        if (!ts) return '';
+        var d = new Date(ts * 1000);
+        return fmtDate(ts) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+
+    // "23.10.2026" / "23.10.26" / "23/10/2026" / "2026-10-23" -> "2026-10-23" (ili '')
+    function parseDateText(str) {
+        str = (str || '').trim();
+        if (!str) return '';
+        var m = str.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})$/);
+        if (m) {
+            var d = Number(m[1]), mo = Number(m[2]), y = Number(m[3]);
+            if (y < 100) y += 2000;
+            if (mo < 1 || mo > 12 || d < 1 || d > 31) return '';
+            return y + '-' + pad2(mo) + '-' + pad2(d);
+        }
+        m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) return str;
+        return '';
+    }
+
+    function isoToTs(iso) {
+        if (!iso) return '';
+        var p = iso.split('-');
+        return Math.floor(new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), 12, 0, 0).getTime() / 1000);
+    }
+
     function prettyDate(ts) {
-        if (!ts) return '—';
-        return new Date(ts * 1000).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        return ts ? fmtDate(ts) : '—';
+    }
+
+    // zajednički kalendar-picker za oba polja
+    function pickDate(textId, onIso) {
+        var native = $('pDateNative');
+        var cur = parseDateText($(textId).value);
+        native.value = cur || '';
+        var done = function () {
+            native.removeEventListener('change', done);
+            if (!native.value) return;
+            var ts = isoToTs(native.value);
+            $(textId).value = fmtDate(ts);
+            onIso(native.value);
+        };
+        native.addEventListener('change', done);
+        if (native.showPicker) { try { native.showPicker(); return; } catch (e) {} }
+        native.click();
     }
 
     /* ---------------- calendar ---------------- */
@@ -1668,8 +1836,10 @@
             $('listview').hidden = state.view !== 'list';
             $('calendar').hidden = state.view !== 'calendar';
             $('timeline').hidden = state.view !== 'timeline';
+            $('overdueView').hidden = state.view !== 'backlog';
             if (state.view === 'calendar') renderCalendar();
             if (state.view === 'timeline') renderTimeline();
+            if (state.view === 'backlog') renderOverdue();
         });
 
         // board: open task, add task
@@ -1772,9 +1942,10 @@
         $('dTitle').addEventListener('input', function (e) { autosize(e.target); saveTask({ title: e.target.value }); });
         $('dDesc').addEventListener('change', function (e) { saveTask({ description: e.target.value }); });
         $('pStart').addEventListener('change', function (e) {
-            var v = e.target.value;
+            var iso = parseDateText(e.target.value);
+            e.target.value = iso ? fmtDate(isoToTs(iso)) : '';
             // Kanboard odbija 0 kao datum; prazan string briše datum početka
-            saveTask({ date_started: v || '' }).then(function () { openTask(state.task.id, true); });
+            saveTask({ date_started: iso ? iso + ' 00:00' : '' }).then(function () { openTask(state.task.id, true); });
         });
         ['pTimeSpent', 'pTimeEst'].forEach(function (id) {
             $(id).addEventListener('change', function (e) {
@@ -1805,7 +1976,19 @@
             if (cn) { openTask(state.task.id, true); return; }
         });
         $('pDue').addEventListener('change', function (e) {
-            saveTask({ date_due: e.target.value || '' });
+            var iso = parseDateText(e.target.value);
+            e.target.value = iso ? fmtDate(isoToTs(iso)) : '';
+            // ponoć, ne "sada": Kanboard inače upiše trenutno vrijeme dana i
+            // datum se pomakne za jedan dan kad je lokalno prošla ponoć
+            saveTask({ date_due: iso ? iso + ' 00:00' : '' });
+        });
+        $('pDuePick').addEventListener('click', function () {
+            pickDate('pDue', function (iso) { saveTask({ date_due: iso + ' 00:00' }); });
+        });
+        $('pStartPick').addEventListener('click', function () {
+            pickDate('pStart', function (iso) {
+                saveTask({ date_started: iso + ' 00:00' }).then(function () { openTask(state.task.id, true); });
+            });
         });
         $('pPriority').addEventListener('click', function () {
             openPop($('pPriority'), PRIORITY.map(function (p, i) {
@@ -1898,6 +2081,20 @@
             if (dl) { downloadFile(Number(dl.dataset.dl)); return; }
             var del = e.target.closest('[data-del]');
             if (del) removeFile(Number(del.dataset.del));
+        });
+        $('dCloseTask').addEventListener('click', function () {
+            setTaskClosed(!!(state.task && state.task.is_active));
+        });
+        $('dDup').addEventListener('click', function () { moveOrCopy('copy'); });
+        $('dMove').addEventListener('click', function () { moveOrCopy('move'); });
+        $('overdueRefresh').addEventListener('click', renderOverdue);
+        $('overdueToggle').addEventListener('click', function () {
+            overdueMode = overdueMode === 'overdue' ? 'closed' : 'overdue';
+            renderOverdue();
+        });
+        $('overdueList').addEventListener('click', function (e) {
+            var row = e.target.closest('[data-task]');
+            if (row) openInProject(Number(row.dataset.project), Number(row.dataset.task));
         });
         $('dDelete').addEventListener('click', function () {
             if (!confirm('Obrisati zadatak "' + state.task.title + '"?')) return;

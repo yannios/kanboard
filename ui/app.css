@@ -416,7 +416,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
     background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
     font-size: .78rem;
 }
-.drawer-actions { margin-top: .75rem; }
+.drawer-actions { margin-top: .75rem; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 
 /* ---------- modal ---------- */
 .modal {
@@ -481,6 +481,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .pm-add input:focus, .pm-add select:focus { outline: none; border-color: var(--accent); }
 .pm-add .btn { flex: 0 0 auto; }
 .pm-note { font-size: .76rem; color: var(--text-3); margin: .5rem 0 0; }
+.linkbtn { color: var(--accent); font-size: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .pm-inline {
     width: 100%; height: 1.7rem; padding: 0 .4rem;
     background: var(--surface-3); border: 1px solid var(--accent);
@@ -496,6 +497,18 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 /* ============================================================
    TASK DRAWER: tags, time, comment editing
    ============================================================ */
+
+.datefield { display: flex; align-items: center; gap: .3rem; }
+.datefield input[type="text"] {
+    width: 7.2rem; height: 1.85rem; padding: 0 .45rem;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-sm); color: var(--text);
+    font: 400 .82rem/1 var(--mono); letter-spacing: .01em;
+}
+.datefield input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.datefield input::placeholder { color: var(--text-3); }
+/* native picker ostaje u DOM-u (treba ga za showPicker), ali se ne vidi */
+.native-date { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; border: 0; padding: 0; }
 
 .timefield { display: flex; align-items: center; gap: .25rem; }
 .timefield input {
