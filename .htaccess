@@ -18,6 +18,12 @@
     # RewriteBase /
 
     RewriteEngine On
+
+    # The static frontend in ui/ must bypass Kanboard's router: without this,
+    # /kanban/ui/ is rewritten to index.php, the app demands a session and
+    # redirects to /kanban/login -- i.e. the classic Kanboard UI, not this one.
+    RewriteRule ^ui/?$ ui/index.html [L]
+
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [QSA,L]
     
