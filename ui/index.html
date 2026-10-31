@@ -66,12 +66,23 @@
       <button class="tab" data-view="list">Lista</button>
       <button class="tab" data-view="backlog">Zaostali</button>
       <button class="tab" data-view="calendar">Kalendar</button>
+      <button class="tab" data-view="timeline">Vremenska crta</button>
     </div>
     <span class="count" id="taskCount"></span>
   </div>
 
   <section class="board" id="board"></section>
   <section class="listview" id="listview" hidden></section>
+  <section class="timeline" id="timeline" hidden>
+    <div class="tl-tools">
+      <button class="icon-btn" id="tlZoomOut" title="Sitnije">−</button>
+      <button class="icon-btn" id="tlZoomIn" title="Krupnije">+</button>
+      <button class="btn" id="tlToday">Danas</button>
+      <span class="muted" id="tlRange"></span>
+    </div>
+    <div class="tl-scroll" id="tlScroll"></div>
+  </section>
+
   <section class="calendar" id="calendar" hidden>
     <div class="cal-head">
       <button class="icon-btn" id="calPrev" title="Prethodni mjesec">‹</button>
@@ -118,6 +129,14 @@
             <input type="file" id="dFileInput" hidden>
           </div>
           <div class="files" id="dFiles"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-h">
+            <h4>Vezani zadaci <span class="muted" id="dLinkCount"></span></h4>
+            <button class="icon-btn sm" id="dAddLink" title="Dodaj vezu">+</button>
+          </div>
+          <div class="links" id="dLinks"></div>
         </div>
 
         <div class="section">

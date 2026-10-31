@@ -445,6 +445,55 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .empty { padding: 2.5rem .25rem; color: var(--text-3); font-size: .9rem; }
 
 /* ============================================================
+   RELATED TASKS (internal links) + TIMELINE
+   ============================================================ */
+
+.links { display: flex; flex-direction: column; gap: .2rem; }
+
+.link-row { display: flex; align-items: center; gap: .5rem; padding: .35rem .4rem; border-radius: var(--r-sm); font-size: .85rem; }
+.link-row:hover { background: var(--surface-2); }
+.link-row .lkind { flex: 0 0 auto; font: 400 .72rem/1 var(--mono); color: var(--text-3); }
+.link-row .lname { flex: 1; min-width: 0; color: var(--accent); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-row .lname:hover { text-decoration: underline; }
+.link-row .lref { font: 400 .72rem/1 var(--mono); color: var(--text-3); flex: 0 0 auto; }
+
+.timeline { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: .9rem 1rem 1.2rem; gap: .6rem; }
+.tl-tools { display: flex; align-items: center; gap: .4rem; }
+.tl-tools .muted { margin-left: auto; font: 400 .74rem/1 var(--mono); }
+.tl-scroll { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: var(--r); -webkit-overflow-scrolling: touch; }
+
+.tl-head { display: flex; position: sticky; top: 0; z-index: 3; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.tl-head .tl-corner { flex: 0 0 13rem; position: sticky; left: 0; z-index: 4; background: var(--surface-2); border-right: 1px solid var(--border); }
+.tl-months { display: flex; }
+.tl-month { padding: .35rem .5rem; font: 500 .74rem/1 "Inter", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); border-right: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
+
+.tl-days { display: flex; }
+.tl-day { text-align: center; font: 400 .64rem/1.4 var(--mono); color: var(--text-3); padding: .2rem 0; }
+.tl-day.is-weekend { background: rgba(127, 127, 127, .07); }
+.tl-day.is-today { color: var(--accent); font-weight: 600; }
+
+.tl-group-head { display: flex; position: sticky; left: 0; z-index: 2; padding: .35rem .55rem; background: var(--bg); font: 500 .74rem/1 "Inter", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+
+.tl-row { display: flex; align-items: stretch; border-top: 1px solid var(--border); }
+.tl-label { flex: 0 0 13rem; position: sticky; left: 0; z-index: 2; display: flex; align-items: center; gap: .45rem; padding: .35rem .55rem; background: var(--bg); border-right: 1px solid var(--border); font-size: .82rem; cursor: pointer; }
+.tl-label:hover { background: var(--surface-2); }
+.tl-label .lref { font: 400 .68rem/1 var(--mono); color: var(--text-3); flex: 0 0 auto; }
+.tl-label span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tl-track { position: relative; flex: 0 0 auto; min-height: 1.9rem; }
+.tl-bar { position: absolute; top: .45rem; height: 1rem; border-radius: 999px; opacity: .85; cursor: pointer; }
+.tl-bar:hover { opacity: 1; }
+.tl-bar.is-overdue { outline: 1px solid var(--danger); }
+.tl-today { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); opacity: .85; pointer-events: none; }
+.tl-empty { padding: 1.2rem .8rem; color: var(--text-3); font-size: .85rem; }
+
+@media (max-width: 860px) {
+    .timeline { padding: .6rem .7rem 1rem; }
+    .tl-head .tl-corner, .tl-label { flex-basis: 8.5rem; }
+    .tl-label { font-size: .78rem; }
+}
+
+/* ============================================================
    FILTER PANEL
    ============================================================ */
 

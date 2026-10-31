@@ -42,7 +42,10 @@
         filter: { owner: 0, category: 0, priority: '', due: '' },
         selected: {},
         selecting: false,
-        collapsed: {}
+        collapsed: {},
+        links: [],
+        linkTypes: [],
+        tlDay: 30
     };
 
     /* ---------------- helpers ---------------- */
@@ -107,6 +110,11 @@
     }
 
     /* ---------------- boot ---------------- */
+    // površne greške ne smiju proći nezapaženo (promise chain bez catch-a)
+    window.addEventListener('unhandledrejection', function (e) {
+        (window.__errs = window.__errs || []).push('rejection: ' + (e.reason && e.reason.message || e.reason));
+    });
+
     function boot() {
         applyTheme(localStorage.getItem(LS_THEME) || 'dark');
         try { state.collapsed = JSON.parse(localStorage.getItem('kbui.collapsed') || '{}') || {}; } catch (e) { state.collapsed = {}; }
@@ -173,6 +181,7 @@
             renderBoard();
             renderList();
             if (state.view === 'calendar') renderCalendar();
+            if (state.view === 'timeline') renderTimeline();
             fillFilterSelects();
             refreshFilterBar();
             countMine();
@@ -338,6 +347,7 @@
         renderBoard();
         renderList();
         if (state.view === 'calendar') renderCalendar();
+        if (state.view === 'timeline') renderTimeline();
         refreshFilterBar();
         renderBulkBar();
     }
@@ -484,12 +494,16 @@
             return Promise.all([
                 api('getAllSubtasks', { task_id: t.id }).catch(function () { return []; }),
                 api('getAllComments', { task_id: t.id }).catch(function () { return []; }),
-                api('getAllTaskFiles', { task_id: t.id }).catch(function () { return []; })
+                api('getAllTaskFiles', { task_id: t.id }).catch(function () { return []; }),
+                api('getAllTaskLinks', { task_id: t.id }).catch(function () { return []; }),
+                state.linkTypes.length ? Promise.resolve(state.linkTypes) : api('getAllLinks').catch(function () { return []; })
             ]);
         }).then(function (res) {
             renderSubtasks(res[0] || []);
             renderComments(res[1] || []);
             renderFiles(res[2] || []);
+            state.linkTypes = res[4] || [];
+            renderLinks(res[3] || []);
         }).catch(function (e) { if (!silent) fail(e); localStorage.removeItem('kbui.task'); });
     }
 
@@ -590,6 +604,142 @@
         api('removeTaskFile', { file_id: id }).then(function () {
             toast('Privitak obrisan'); openTask(state.task.id, true); loadAll();
         }).catch(fail);
+    }
+
+    /* ---------------- related tasks ---------------- */
+    function renderLinks(list) {
+        state.links = list || [];
+        $('dLinkCount').textContent = list.length ? list.length : '';
+        $('dLinks').innerHTML = list.map(function (l) {
+            return '<div class="link-row">' +
+                '<span class="lkind">' + esc(l.label) + '</span>' +
+                '<span class="lname" data-open="' + l.task_id + '">' + esc(l.title || '') + '</span>' +
+                '<span class="lref">' + esc(ref(state.project) + '-' + l.task_id) + '</span>' +
+                '<button class="icon-btn sm" data-unlink="' + l.id + '" title="Ukloni vezu">✕</button>' +
+                '</div>';
+        }).join('') || '<div class="muted" style="font-size:.8rem;padding:.2rem .1rem">Nema veza.</div>';
+    }
+
+    function addLink() {
+        var types = (state.linkTypes || []);
+        if (!types.length) { toast('Kanboard ne vraća tipove veza.'); return; }
+        openPop($('dAddLink'), types.map(function (t) { return { label: t.label, value: t.id }; }), function (type) {
+            var others = allTasks().filter(function (t) { return t.id !== state.task.id; });
+            if (!others.length) { toast('Nema drugih zadataka u projektu.'); return; }
+            openPop($('dAddLink'), others.map(function (t) {
+                return { label: t.title, meta: ref(state.project) + '-' + t.id, value: t.id };
+            }), function (pick) {
+                api('createTaskLink', { task_id: state.task.id, opposite_task_id: pick.value, link_id: type.value })
+                    .then(function () { toast('Veza dodana'); openTask(state.task.id, true); })
+                    .catch(fail);
+            });
+        });
+    }
+
+    function unlink(linkId) {
+        api('removeTaskLink', { task_link_id: linkId }).then(function () {
+            toast('Veza uklonjena'); openTask(state.task.id, true);
+        }).catch(fail);
+    }
+
+    /* ---------------- timeline ---------------- */
+    function dayKey(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+
+    function renderTimeline() {
+        var host = $('tlScroll');
+        var list = allTasks().filter(visible);
+        var dated = list.filter(function (t) { return t.date_due; });
+        if (!dated.length) {
+            host.innerHTML = '<div class="tl-empty">Nema zadataka s rokom u ovom projektu (ili ih filtri skrivaju).</div>';
+            $('tlRange').textContent = '';
+            return;
+        }
+
+        var min = null, max = null;
+        dated.forEach(function (t) {
+            var s = dayKey(new Date(((t.date_started || t.date_creation) * 1000)));
+            var e = dayKey(new Date(t.date_due * 1000));
+            if (e < s) e = s;
+            if (min === null || s < min) min = s;
+            if (max === null || e > max) max = e;
+        });
+        var today = dayKey(new Date());
+        if (today < min) min = today;
+        if (today > max) max = today;
+        // pad to whole weeks
+        var start = dayKey(new Date(min)); start -= new Date(start).getDay() * 86400000;
+        var end = max + 7 * 86400000;
+        var days = Math.round((end - start) / 86400000);
+        var W = state.tlDay;
+        var totalW = days * W;
+
+        var months = [], curMonth = null;
+        var daysHTML = '';
+        for (var i = 0; i < days; i++) {
+            var d = new Date(start + i * 86400000);
+            var mk = d.getFullYear() + '-' + d.getMonth();
+            if (mk !== curMonth) {
+                months.push({ label: d.toLocaleDateString('hr-HR', { month: 'short', year: '2-digit' }), n: 1 });
+                curMonth = mk;
+            } else {
+                months[months.length - 1].n++;
+            }
+            var wknd = d.getDay() === 0 || d.getDay() === 6;
+            daysHTML += '<div class="tl-day' + (wknd ? ' is-weekend' : '') + (dayKey(d) === today ? ' is-today' : '') +
+                '" style="width:' + W + 'px">' + d.getDate() + '</div>';
+        }
+        var monthsHTML = months.map(function (m) {
+            return '<div class="tl-month" style="width:' + (m.n * W) + 'px">' + esc(m.label) + '</div>';
+        }).join('');
+
+        var groups = [];
+        state.board.forEach(function (sw) {
+            (sw.columns || []).forEach(function (c) {
+                var tasks = dated.filter(function (t) { return t.column_id === c.id; });
+                if (tasks.length) groups.push({ title: c.title, tasks: sortTasks(tasks) });
+            });
+        });
+
+        var rowsHTML = groups.map(function (g) {
+            return '<div class="tl-group-head">' + esc(g.title) + '</div>' + g.tasks.map(function (t) {
+                var s = dayKey(new Date(((t.date_started || t.date_creation) * 1000)));
+                var e = dayKey(new Date(t.date_due * 1000));
+                if (e < s) e = s;
+                var left = ((s - start) / 86400000) * W;
+                var width = Math.max(W, ((e - s) / 86400000 + 1) * W);
+                var due = dueInfo(t.date_due);
+                var col = COLOR_HEX[t.color_id] || '#8a8f98';
+                return '<div class="tl-row">' +
+                    '<div class="tl-label" data-task="' + t.id + '">' +
+                    '<span class="lref">' + esc(ref(state.project) + '-' + t.id) + '</span>' +
+                    '<span>' + esc(t.title) + '</span></div>' +
+                    '<div class="tl-track" style="width:' + totalW + 'px">' +
+                    '<div class="tl-bar' + (due && due.overdue ? ' is-overdue' : '') + '" data-task="' + t.id + '"' +
+                    ' style="left:' + left + 'px;width:' + width + 'px;background:' + col + '"' +
+                    ' title="' + esc(prettyDate(t.date_started || t.date_creation) + ' → ' + prettyDate(t.date_due)) + '"></div>' +
+                    (dayKey(new Date(today)) >= start && today <= end
+                        ? '<div class="tl-today" style="left:' + (((today - start) / 86400000) * W) + 'px"></div>' : '') +
+                    '</div></div>';
+            }).join('');
+        }).join('');
+
+        var todayX = ((today - start) / 86400000) * W;
+        host.innerHTML =
+            '<div class="tl-head"><div class="tl-corner"></div><div>' +
+                '<div class="tl-months">' + monthsHTML + '</div>' +
+                '<div class="tl-days">' + daysHTML + '</div>' +
+            '</div></div>' + rowsHTML;
+
+        $('tlRange').textContent = prettyDate(start / 1000) + ' – ' + prettyDate(end / 1000);
+        // skrolaj na danas
+        setTimeout(function () {
+            host.scrollLeft = Math.max(0, todayX - host.clientWidth / 3);
+        }, 30);
+    }
+
+    function prettyDate(ts) {
+        if (!ts) return '—';
+        return new Date(ts * 1000).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     }
 
     /* ---------------- calendar ---------------- */
@@ -778,7 +928,9 @@
             board.hidden = state.view !== 'board';
             $('listview').hidden = state.view !== 'list';
             $('calendar').hidden = state.view !== 'calendar';
+            $('timeline').hidden = state.view !== 'timeline';
             if (state.view === 'calendar') renderCalendar();
+            if (state.view === 'timeline') renderTimeline();
         });
 
         // board: open task, add task
@@ -812,6 +964,21 @@
             var n = new Date(); state.calMonth = new Date(n.getFullYear(), n.getMonth(), 1); renderCalendar();
         });
         $('calGrid').addEventListener('click', function (e) {
+            var t = e.target.closest('[data-task]');
+            if (t) openTask(Number(t.dataset.task));
+        });
+        $('tlZoomIn').addEventListener('click', function () {
+            state.tlDay = Math.min(64, state.tlDay + 10); renderTimeline();
+        });
+        $('tlZoomOut').addEventListener('click', function () {
+            state.tlDay = Math.max(14, state.tlDay - 10); renderTimeline();
+        });
+        $('tlToday').addEventListener('click', function () {
+            var host = $('tlScroll');
+            var marker = host.querySelector('.tl-days .is-today');
+            if (marker) host.scrollLeft = Math.max(0, marker.offsetLeft - host.clientWidth / 3);
+        });
+        $('tlScroll').addEventListener('click', function (e) {
             var t = e.target.closest('[data-task]');
             if (t) openTask(Number(t.dataset.task));
         });
@@ -918,6 +1085,22 @@
             api('updateSubtask', { id: Number(cb.dataset.sub), task_id: state.task.id, status: cb.checked ? 1 : 0 })
                 .then(function () { openTask(state.task.id, true); }).catch(fail);
         });
+        $('dCommentInput').addEventListener('keyup', function (e) {
+            if (e.key === 'Escape') { closePop(); return; }
+            var m = /@([^\s@]*)$/.exec(e.target.value.slice(0, e.target.selectionStart));
+            if (!m) { if (!$('popmenu').hidden) closePop(); return; }
+            var q = m[1].toLowerCase();
+            var hits = state.members.filter(function (u) { return u.name.toLowerCase().indexOf(q) === 0; });
+            if (!hits.length) { closePop(); return; }
+            openPop(e.target, hits.map(function (u) { return { label: u.name, meta: '@' + u.name, value: u.name }; }),
+                function (it) {
+                    var ta = $('dCommentInput');
+                    var pos = ta.selectionStart;
+                    ta.value = ta.value.slice(0, pos).replace(/@([^\s@]*)$/, '@' + it.value + ' ') + ta.value.slice(pos);
+                    ta.focus();
+                });
+        });
+
         $('dCommentSend').addEventListener('click', function () {
             var ta = $('dCommentInput');
             if (!ta.value.trim()) return;
@@ -928,6 +1111,13 @@
                 openTask(state.task.id, true);
                 toast('Komentar dodan');
             }).catch(fail);
+        });
+        $('dAddLink').addEventListener('click', addLink);
+        $('dLinks').addEventListener('click', function (e) {
+            var un = e.target.closest('[data-unlink]');
+            if (un) { unlink(Number(un.dataset.unlink)); return; }
+            var op = e.target.closest('[data-open]');
+            if (op) openTask(Number(op.dataset.open));
         });
         $('dFileInput').addEventListener('change', function (e) { uploadFiles(e.target.files); e.target.value = ''; });
         $('dFiles').addEventListener('click', function (e) {
@@ -977,8 +1167,8 @@
                 if (first) newCardForm(first.dataset.drop, first);
                 return;
             }
-            if (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4') {
-                var order = ['board', 'list', 'backlog', 'calendar'];
+            if (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4' || e.key === '5') {
+                var order = ['board', 'list', 'backlog', 'calendar', 'timeline'];
                 var tab = document.querySelector('.tab[data-view="' + order[Number(e.key) - 1] + '"]');
                 if (tab) tab.click();
             }

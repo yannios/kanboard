@@ -55,6 +55,24 @@ izgleda isto kao i prije.
   dolje se pojavi traka s brojem odabranih i akcijama *Premjesti u kolonu*,
   *Dodijeli korisniku*, *Obriši*.
 
+## Vremenska crta (Gantt)
+
+Tab **Vremenska crta** prikazuje zadatke kao trake: početak je `date_started`
+(ili datum kreiranja), kraj je `date_due`; zadaci su grupirani po koloni, danas
+je označeno linijom, a prekoračen rok dobiva crveni obrub. Zumiranje (−/+) mijenja
+širinu dana (14–64 px), „Danas" skrola na današnji datum.
+
+## Vezani zadaci
+
+U kartici zadatka, sekcija **Vezani zadaci**: `+` → odaberi tip veze (relates to,
+blocks, duplicates, …) → odaberi zadatak. Veza se stvara preko `createTaskLink`;
+✕ uklanja vezu (`removeTaskLink`, parametar je `task_link_id`).
+
+## Spominjanja u komentarima
+
+U polju za komentar upiši `@` — iskoči popis članova projekta; odabir ubaci
+`@korisnicko_ime ` (Kanboard tako šalje obavijest spomenutom).
+
 ## Prečaci na tipkovnici
 
 | Tipka | Akcija |
