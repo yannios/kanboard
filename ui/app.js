@@ -38,7 +38,10 @@
         task: null,
         members: [],
         files: [],
-        calMonth: null
+        calMonth: null,
+        filter: { owner: 0, category: 0, priority: '', due: '' },
+        selected: {},
+        selecting: false
     };
 
     /* ---------------- helpers ---------------- */
@@ -168,6 +171,8 @@
             renderBoard();
             renderList();
             if (state.view === 'calendar') renderCalendar();
+            fillFilterSelects();
+            refreshFilterBar();
             countMine();
             var t = localStorage.getItem('kbui.task');
             if (t) openTask(Number(t), true);
@@ -272,8 +277,11 @@
             labels += '<span class="chip">' + esc(tag) + '</span>';
         });
 
-        return '<article class="card" draggable="true" data-task="' + t.id + '">' +
-            '<div class="card-top"><span class="card-id">' + esc(id) + '</span>' +
+        var picked = !!state.selected[t.id];
+        return '<article class="card' + (picked ? ' is-picked' : '') + '" draggable="' + (state.selecting ? 'false' : 'true') + '" data-task="' + t.id + '">' +
+            '<div class="card-top">' +
+            (state.selecting ? '<input type="checkbox" class="pick" data-pick="' + t.id + '"' + (picked ? ' checked' : '') + '>' : '') +
+            '<span class="card-id">' + esc(id) + '</span>' +
             (av ? '<span class="assignee" title="' + esc(who) + '">' + av + '</span>' : '') +
             '</div>' +
             '<div class="card-title">' + esc(t.title) + '</div>' +
@@ -282,12 +290,108 @@
             '</article>';
     }
 
+    function dueBucket(t) {
+        if (!t.date_due) return 'none';
+        var info = dueInfo(t.date_due);
+        if (!info) return 'none';
+        if (info.overdue) return 'over';
+        if (info.text === 'danas') return 'today';
+        var d = new Date(t.date_due * 1000), now = new Date();
+        var diff = (d - now) / 86400000;
+        return diff <= 7 ? 'week' : 'later';
+    }
+
     function visible(t) {
+        var f = state.filter;
+        if (f.owner && t.owner_id !== f.owner) return false;
+        if (f.category && t.category_id !== f.category) return false;
+        if (f.priority !== '' && (t.priority || 0) !== Number(f.priority)) return false;
+        if (f.due) {
+            var b = dueBucket(t);
+            if (f.due === 'week' ? (b !== 'week' && b !== 'today') : b !== f.due) return false;
+        }
         if (!state.search) return true;
         var q = state.search.toLowerCase();
         return (t.title || '').toLowerCase().indexOf(q) > -1 ||
             (t.category_name || '').toLowerCase().indexOf(q) > -1 ||
             (t.assignee_name || '').toLowerCase().indexOf(q) > -1;
+    }
+
+    function activeFilterCount() {
+        var f = state.filter, n = 0;
+        if (f.owner) n++;
+        if (f.category) n++;
+        if (f.priority !== '') n++;
+        if (f.due) n++;
+        return n;
+    }
+
+    function refreshFilterBar() {
+        var n = activeFilterCount();
+        $('filterCount').textContent = n ? ' · ' + n : '';
+        $('filterBtn').classList.toggle('has-filter', n > 0);
+    }
+
+    function applyFilters() {
+        renderBoard();
+        renderList();
+        if (state.view === 'calendar') renderCalendar();
+        refreshFilterBar();
+        renderBulkBar();
+    }
+
+    function pickedIds() {
+        return Object.keys(state.selected).filter(function (k) { return state.selected[k]; }).map(Number);
+    }
+
+    function togglePick(id) {
+        state.selected[id] = !state.selected[id];
+        renderBoard();
+        renderBulkBar();
+    }
+
+    function renderBulkBar() {
+        var n = pickedIds().length;
+        $('bulkbar').hidden = !(state.selecting && n > 0);
+        $('bulkCount').textContent = n + ' odabrano';
+    }
+
+    function bulk(fn, msg) {
+        var ids = pickedIds();
+        var tasks = [];
+        allTasks().forEach(function (t) { if (ids.indexOf(t.id) > -1) tasks.push(t); });
+        if (!tasks.length) { toast('Nema odabranih zadataka'); return; }
+        var ok = 0, bad = 0, left = tasks.length;
+        tasks.forEach(function (t) {
+            fn(t).then(function () { ok++; }).catch(function () { bad++; }).then(function () {
+                if (--left > 0) return;
+                toast(msg + ' (' + ok + (bad ? ', greške: ' + bad : '') + ')');
+                state.selected = {};
+                state.selecting = false;
+                document.body.classList.remove('selecting');
+                $('selectBtn').classList.remove('has-filter');
+                loadAll();
+            });
+        });
+    }
+
+    function fillFilterSelects() {
+        var f = state.filter;
+        var owner = $('fOwner');
+        owner.innerHTML = '<option value="0">svi</option>' + state.members.map(function (m) {
+            return '<option value="' + m.id + '">' + esc(m.name) + '</option>';
+        }).join('');
+        owner.value = String(f.owner || 0);
+
+        var cat = $('fCategory');
+        cat.innerHTML = '<option value="0">sve</option>' + (state.categories || []).map(function (c) {
+            return '<option value="' + c.id + '">' + esc(c.name) + '</option>';
+        }).join('');
+        cat.value = String(f.category || 0);
+
+        $('fPriority').value = f.priority;
+        $('fDue').value = f.due;
+        $('fSort').value = state.sort;
     }
 
     function renderBoard() {
@@ -542,6 +646,98 @@
             toast('Projekte kreiraš u Kanboardu — ovo sučelje ih samo prikazuje.');
         });
 
+        // --- filtri ---
+        $('filterBtn').addEventListener('click', function (e) {
+            e.stopPropagation();
+            fillFilterSelects();
+            $('fpanel').hidden = !$('fpanel').hidden;
+        });
+        $('fClose').addEventListener('click', function () { $('fpanel').hidden = true; });
+        $('fClear').addEventListener('click', function () {
+            state.filter = { owner: 0, category: 0, priority: '', due: '' };
+            fillFilterSelects(); applyFilters();
+        });
+        [['fOwner', 'owner', Number], ['fCategory', 'category', Number],
+         ['fPriority', 'priority', String], ['fDue', 'due', String]].forEach(function (row) {
+            $(row[0]).addEventListener('change', function (e) {
+                state.filter[row[1]] = row[2](e.target.value);
+                applyFilters();
+            });
+        });
+        $('fSort').addEventListener('change', function (e) {
+            state.sort = e.target.value;
+            renderBoard(); renderList();
+        });
+
+        // --- masovne akcije ---
+        $('selectBtn').addEventListener('click', function () {
+            state.selecting = !state.selecting;
+            if (!state.selecting) state.selected = {};
+            document.body.classList.toggle('selecting', state.selecting);
+            $('selectBtn').classList.toggle('has-filter', state.selecting);
+            renderBoard(); renderBulkBar();
+        });
+        $('bulkCancel').addEventListener('click', function () {
+            state.selecting = false; state.selected = {};
+            document.body.classList.remove('selecting');
+            $('selectBtn').classList.remove('has-filter');
+            renderBoard(); renderBulkBar();
+        });
+        $('bulkMove').addEventListener('click', function () {
+            var cols = [];
+            state.board.forEach(function (sw) { (sw.columns || []).forEach(function (c) { cols.push(c); }); });
+            openPop($('bulkMove'), cols.map(function (c) { return { label: c.title, value: c.id }; }), function (it) {
+                bulk(function (t) {
+                    return api('moveTaskPosition', {
+                        project_id: state.project.id, task_id: t.id, column_id: it.value,
+                        position: 1, swimlane_id: t.swimlane_id || 1
+                    });
+                }, 'Premješteno u „' + it.label + '"');
+            });
+        });
+        $('bulkAssign').addEventListener('click', function () {
+            var items = [{ label: 'nitko', value: 0 }].concat(state.members.map(function (m) {
+                return { label: m.name, meta: initials(m.name), value: m.id };
+            }));
+            openPop($('bulkAssign'), items, function (it) {
+                bulk(function (t) { return api('updateTask', { id: t.id, owner_id: it.value }); },
+                    'Dodijeljeno: ' + it.label);
+            });
+        });
+        $('bulkDelete').addEventListener('click', function () {
+            var n = Object.keys(state.selected).length;
+            if (!n || !confirm('Obrisati ' + n + ' zadataka?')) return;
+            bulk(function (t) { return api('removeTask', { task_id: t.id }); }, 'Obrisano zadataka: ' + n);
+        });
+
+        // --- navigacija ---
+        document.querySelector('.nav').addEventListener('click', function (e) {
+            var item = e.target.closest('[data-nav]');
+            if (!item) return;
+            e.preventDefault();
+            var nav = item.dataset.nav;
+            document.querySelectorAll('.nav-item').forEach(function (x) { x.classList.remove('is-active'); });
+            item.classList.add('is-active');
+
+            if (nav === 'home') {
+                state.filter = { owner: 0, category: 0, priority: '', due: '' };
+                state.search = ''; $('search').value = '';
+                applyFilters();
+            } else if (nav === 'mine') {
+                state.filter = { owner: (state.me && state.me.id) || 1, category: 0, priority: '', due: '' };
+                applyFilters();
+                toast('Prikazujem samo tvoje zadatke');
+            } else if (nav === 'members') {
+                var items = state.members.map(function (m) {
+                    var n = allTasks().filter(function (t) { return t.owner_id === m.id; }).length;
+                    return { label: m.name, meta: n + ' zad.' };
+                });
+                if (!items.length) { toast('Nema članova na projektu.'); return; }
+                openPop(item, items, function () {});
+                return;
+            }
+        });
+
         // top bar
         $('search').addEventListener('input', function (e) {
             state.search = e.target.value.trim();
@@ -568,9 +764,11 @@
         // board: open task, add task
         board.addEventListener('click', function (e) {
             var add = e.target.closest('[data-add]');
-            if (add) { newCardForm(add.dataset.add, add.closest('.col').querySelector('.cards')); return; }
+            if (add && !state.selecting) { newCardForm(add.dataset.add, add.closest('.col').querySelector('.cards')); return; }
             var card = e.target.closest('[data-task]');
-            if (card) openTask(Number(card.dataset.task));
+            if (!card) return;
+            if (state.selecting) { togglePick(Number(card.dataset.task)); return; }
+            openTask(Number(card.dataset.task));
         });
         $('listview').addEventListener('click', function (e) {
             var row = e.target.closest('[data-task]');
@@ -595,6 +793,7 @@
         board.addEventListener('dragstart', function (e) {
             var c = e.target.closest('.card');
             if (!c) return;
+            if (state.selecting) { e.preventDefault(); return; }
             dragId = Number(c.dataset.task);
             c.classList.add('is-dragging');
             e.dataTransfer.effectAllowed = 'move';

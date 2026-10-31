@@ -38,6 +38,16 @@ Sučelje je prilagođeno za telefon (testirano na 390 px širine):
 - detalj zadatka je preko cijelog ekrana, svojstva su iznad teksta
 - svi gumbi su najmanje ~38 px za prst
 
+## Filtri i masovne akcije
+
+- **Filtri** (gumb u traci): dodijeljeno, kategorija, prioritet, rok
+  (probijeno / danas / ovaj tjedan / bez roka) + sortiranje. Aktivni filtri se
+  broje na gumbu; „Očisti filtre" resetira sve. Filtri vrijede za ploču, listu i kalendar.
+- **Moji zadaci** (sidebar): prikazuje samo zadatke dodijeljene tebi.
+- **Masovne akcije**: gumb ▣ uključi način odabira — kartice dobiju kvačice,
+  dolje se pojavi traka s brojem odabranih i akcijama *Premjesti u kolonu*,
+  *Dodijeli korisniku*, *Obriši*.
+
 ## Prečaci na tipkovnici
 
 | Tipka | Akcija |

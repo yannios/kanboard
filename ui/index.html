@@ -54,6 +54,8 @@
     </div>
     <div class="topbar-actions">
       <input class="search" id="search" type="search" placeholder="Traži…">
+      <button class="chip" id="filterBtn" title="Filtriraj zadatke">Filtri<span id="filterCount"></span></button>
+      <button class="icon-btn" id="selectBtn" title="Odaberi više (masovne akcije)">▣</button>
       <button class="icon-btn" id="sortBtn" title="Sortiraj">⇅</button>
     </div>
   </header>
@@ -158,6 +160,34 @@
       <button class="btn primary" id="authSave">Spoji se</button>
     </div>
   </div>
+</div>
+
+<div class="fpanel" id="fpanel" hidden>
+  <div class="frow"><span>Dodijeljeno</span><select id="fOwner"></select></div>
+  <div class="frow"><span>Kategorija</span><select id="fCategory"></select></div>
+  <div class="frow"><span>Prioritet</span><select id="fPriority">
+    <option value="">svi</option><option value="0">Nizak</option><option value="1">Srednji</option>
+    <option value="2">Visok</option><option value="3">Hitan</option>
+  </select></div>
+  <div class="frow"><span>Rok</span><select id="fDue">
+    <option value="">svi</option><option value="over">probijeno</option><option value="today">danas</option>
+    <option value="week">ovaj tjedan</option><option value="none">bez roka</option>
+  </select></div>
+  <div class="frow"><span>Sortiranje</span><select id="fSort">
+    <option value="due">po roku</option><option value="priority">po prioritetu</option>
+  </select></div>
+  <div class="factions">
+    <button class="btn" id="fClear">Očisti filtre</button>
+    <button class="btn primary" id="fClose">Gotovo</button>
+  </div>
+</div>
+
+<div class="bulkbar" id="bulkbar" hidden>
+  <span id="bulkCount">0 odabrano</span>
+  <button class="btn" id="bulkMove">Premjesti u…</button>
+  <button class="btn" id="bulkAssign">Dodijeli…</button>
+  <button class="btn danger" id="bulkDelete">Obriši</button>
+  <button class="btn" id="bulkCancel">Odustani</button>
 </div>
 
 <div class="popmenu" id="popmenu" hidden></div>

@@ -431,6 +431,65 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .empty { padding: 2.5rem .25rem; color: var(--text-3); font-size: .9rem; }
 
 /* ============================================================
+   FILTER PANEL
+   ============================================================ */
+
+.fpanel {
+    position: fixed; z-index: 70;
+    right: 1rem; top: 3.4rem;
+    width: 17rem; padding: .7rem;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-lg);
+}
+.frow { display: flex; align-items: center; gap: .5rem; margin-bottom: .45rem; }
+.frow > span { flex: 0 0 5.6rem; font-size: .78rem; color: var(--text-3); }
+.frow select {
+    flex: 1; min-width: 0; height: 1.9rem; padding: 0 .4rem;
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--r-sm);
+    font-size: .82rem;
+}
+.frow select:focus { outline: none; border-color: var(--accent); }
+.factions { display: flex; justify-content: space-between; gap: .4rem; margin-top: .7rem; }
+
+.chip.has-filter { border-color: var(--accent); color: var(--accent); }
+.chip .fdot { width: .4rem; height: .4rem; border-radius: 50%; background: var(--accent); }
+
+/* ============================================================
+   BULK SELECTION
+   ============================================================ */
+
+.bulkbar {
+    position: fixed; left: 50%; bottom: 1.4rem; transform: translateX(-50%);
+    z-index: 65;
+    display: flex; align-items: center; gap: .4rem;
+    padding: .5rem .6rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: .6rem;
+    box-shadow: var(--shadow-lg);
+}
+.bulkbar > span { font: 500 .8rem/1 var(--mono); color: var(--text-2); padding: 0 .4rem 0 .2rem; }
+
+body.selecting .card { cursor: default; }
+.card .pick {
+    width: 1rem; height: 1rem; margin: 0 .35rem 0 0;
+    accent-color: var(--accent);
+    flex: 0 0 auto;
+}
+.card.is-picked { border-color: var(--accent); background: var(--accent-soft); }
+.card-top { align-items: center; }
+
+@media (max-width: 860px) {
+    .fpanel { right: .7rem; left: .7rem; width: auto; top: 6.4rem; }
+    .bulkbar { left: .7rem; right: .7rem; transform: none; flex-wrap: wrap; justify-content: center; bottom: .8rem; }
+    .bulkbar > span { flex: 1 1 100%; text-align: center; padding: 0 0 .3rem; }
+}
+
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 
