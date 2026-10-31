@@ -63,12 +63,22 @@
       <button class="tab is-active" data-view="board">Zadaci</button>
       <button class="tab" data-view="list">Lista</button>
       <button class="tab" data-view="backlog">Zaostali</button>
+      <button class="tab" data-view="calendar">Kalendar</button>
     </div>
     <span class="count" id="taskCount"></span>
   </div>
 
   <section class="board" id="board"></section>
   <section class="listview" id="listview" hidden></section>
+  <section class="calendar" id="calendar" hidden>
+    <div class="cal-head">
+      <button class="icon-btn" id="calPrev" title="Prethodni mjesec">‹</button>
+      <strong id="calTitle"></strong>
+      <button class="icon-btn" id="calNext" title="Sljedeći mjesec">›</button>
+      <button class="btn" id="calToday">Danas</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </section>
 </main>
 
 <!-- ============ TASK DRAWER ============ -->
@@ -100,6 +110,15 @@
         </div>
 
         <div class="section">
+          <div class="section-h">
+            <h4>Privici <span class="muted" id="dFileCount"></span></h4>
+            <label class="icon-btn sm" title="Dodaj privitak" for="dFileInput">+</label>
+            <input type="file" id="dFileInput" hidden>
+          </div>
+          <div class="files" id="dFiles"></div>
+        </div>
+
+        <div class="section">
           <div class="section-h"><h4>Aktivnost</h4></div>
           <div class="comments" id="dComments"></div>
           <div class="comment-box">
@@ -113,6 +132,7 @@
         <div class="prop"><span>Status</span><button class="chip" id="pColumn">—</button></div>
         <div class="prop"><span>Prioritet</span><button class="chip" id="pPriority">—</button></div>
         <div class="prop"><span>Datum</span><input type="date" id="pDue"></div>
+        <div class="prop"><span>Dodijeljeno</span><button class="chip" id="pOwner">—</button></div>
         <div class="prop"><span>Kategorija</span><button class="chip" id="pCategory">—</button></div>
         <div class="prop"><span>Boja</span><button class="chip" id="pColor">—</button></div>
         <div class="prop"><span>Projekt</span><span class="chip flat" id="pProject">—</span></div>
@@ -140,6 +160,7 @@
   </div>
 </div>
 
+<div class="popmenu" id="popmenu" hidden></div>
 <div class="boardside-scrim" id="sideScrim" hidden></div>
 <div class="toast" id="toast" hidden></div>
 

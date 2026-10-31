@@ -36,7 +36,9 @@
         sort: 'due',
         view: 'board',
         task: null,
-        csrfLess: true
+        members: [],
+        files: [],
+        calMonth: null
     };
 
     /* ---------------- helpers ---------------- */
@@ -154,15 +156,18 @@
             return Promise.all([
                 api('getBoard', { project_id: state.project.id }),
                 api('getAllCategories', { project_id: state.project.id }).catch(function () { return []; }),
-                api('getAssignableUsers', { project_id: state.project.id }).catch(function () { return []; })
+                api('getProjectUsers', { project_id: state.project.id }).catch(function () { return {}; })
             ]);
         }).then(function (res) {
             state.board = res[0] || [];
             state.categories = res[1] || [];
             var u = res[2] || [];
-            state.users = Array.isArray(u) ? u : Object.keys(u).map(function (k) { return u[k]; });
+            state.members = Array.isArray(u) ? u.map(function (x) { return x; })
+                : Object.keys(u).map(function (k) { return { id: Number(k), name: u[k] }; });
+            state.users = state.members;
             renderBoard();
             renderList();
+            if (state.view === 'calendar') renderCalendar();
             countMine();
             var t = localStorage.getItem('kbui.task');
             if (t) openTask(Number(t), true);
@@ -170,6 +175,41 @@
             fail(e);
             if (!state.projects.length) openAuth();
         });
+    }
+
+    function fmtSize(b) {
+        if (!b) return '0 B';
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return (b / 1024).toFixed(0) + ' kB';
+        return (b / 1048576).toFixed(1) + ' MB';
+    }
+
+    function closePop() { var p = $('popmenu'); p.hidden = true; p.innerHTML = ''; }
+
+    function openPop(anchor, items, onPick) {
+        var pop = $('popmenu');
+        pop.innerHTML = items.map(function (it, i) {
+            return '<button data-i="' + i + '"' + (it.active ? ' class="is-active"' : '') + '>' +
+                (it.dot ? '<span class="dot" style="background:' + it.dot + '"></span>' : '') +
+                esc(it.label) + (it.meta ? '<span class="who">' + esc(it.meta) + '</span>' : '') + '</button>';
+        }).join('');
+        pop.hidden = false;
+        var r = anchor.getBoundingClientRect();
+        var w = Math.max(176, r.width);
+        pop.style.minWidth = w + 'px';
+        var left = Math.min(r.left, window.innerWidth - w - 8);
+        var top = r.bottom + 4;
+        if (top + pop.offsetHeight > window.innerHeight - 8) {
+            top = Math.max(8, r.top - pop.offsetHeight - 4);
+        }
+        pop.style.left = Math.max(8, left) + 'px';
+        pop.style.top = top + 'px';
+        pop.onclick = function (e) {
+            var b = e.target.closest('[data-i]');
+            if (!b) return;
+            closePop();
+            onPick(items[Number(b.dataset.i)]);
+        };
     }
 
     /* ---------------- render: sidebar ---------------- */
@@ -314,15 +354,18 @@
             $('pCategory').textContent = categoryName(t.category_id) || 'bez kategorije';
             $('pColor').innerHTML = '<span class="dot" style="background:' + (COLOR_HEX[t.color_id] || 'var(--text-3)') + '"></span>' + (t.color_id || 'grey');
             $('pDue').value = t.date_due ? new Date(t.date_due * 1000).toISOString().slice(0, 10) : '';
+            $('pOwner').textContent = ownerName(t.owner_id) || 'nitko';
             $('drawerWrap').hidden = false;
             autosize($('dTitle'));
             return Promise.all([
                 api('getAllSubtasks', { task_id: t.id }).catch(function () { return []; }),
-                api('getAllComments', { task_id: t.id }).catch(function () { return []; })
+                api('getAllComments', { task_id: t.id }).catch(function () { return []; }),
+                api('getAllTaskFiles', { task_id: t.id }).catch(function () { return []; })
             ]);
         }).then(function (res) {
             renderSubtasks(res[0] || []);
             renderComments(res[1] || []);
+            renderFiles(res[2] || []);
         }).catch(function (e) { if (!silent) fail(e); localStorage.removeItem('kbui.task'); });
     }
 
@@ -369,6 +412,103 @@
     function autosize(el) {
         el.style.height = 'auto';
         el.style.height = el.scrollHeight + 'px';
+    }
+
+    /* ---------------- attachments ---------------- */
+    function renderFiles(list) {
+        state.files = list || [];
+        $('dFileCount').textContent = list.length ? list.length : '';
+        $('dFiles').innerHTML = list.map(function (f) {
+            return '<div class="file-row" data-file="' + f.id + '">' +
+                '<span class="fi">' + (f.is_image == 1 ? '🖼' : '📄') + '</span>' +
+                '<span class="fname" data-dl="' + f.id + '" title="Preuzmi">' + esc(f.name) + '</span>' +
+                '<span class="fsize">' + fmtSize(f.size) + '</span>' +
+                '<button class="icon-btn sm" data-del="' + f.id + '" title="Obriši privitak">✕</button>' +
+                '</div>';
+        }).join('') || '<div class="muted" style="font-size:.8rem;padding:.2rem .1rem">Nema privitaka.</div>';
+    }
+
+    function uploadFiles(fileList) {
+        if (!fileList || !fileList.length || !state.task) return;
+        var pending = fileList.length;
+        Array.prototype.forEach.call(fileList, function (file) {
+            var fr = new FileReader();
+            fr.onload = function () {
+                var b64 = String(fr.result).split(',')[1] || '';
+                api('createTaskFile', {
+                    project_id: state.project.id, task_id: state.task.id,
+                    filename: file.name, blob: b64,
+                    is_image: /^image\//.test(file.type) ? 1 : 0
+                }).then(function () {
+                    if (--pending === 0) { toast('Privici dodani'); openTask(state.task.id, true); loadAll(); }
+                }).catch(function (e) { fail(e); });
+            };
+            fr.readAsDataURL(file);
+        });
+    }
+
+    function downloadFile(id) {
+        var f = state.files.filter(function (x) { return x.id === id; })[0];
+        api('downloadTaskFile', { file_id: id }).then(function (b64) {
+            var bin = atob(b64);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            var url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+            var a = document.createElement('a');
+            a.href = url; a.download = f ? f.name : ('file-' + id);
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        }).catch(fail);
+    }
+
+    function removeFile(id) {
+        if (!confirm('Obrisati privitak?')) return;
+        api('removeTaskFile', { file_id: id }).then(function () {
+            toast('Privitak obrisan'); openTask(state.task.id, true); loadAll();
+        }).catch(fail);
+    }
+
+    /* ---------------- calendar ---------------- */
+    function renderCalendar() {
+        if (!state.calMonth) { var n = new Date(); state.calMonth = new Date(n.getFullYear(), n.getMonth(), 1); }
+        var m = state.calMonth;
+        $('calTitle').textContent = m.toLocaleDateString('hr-HR', { month: 'long', year: 'numeric' });
+        var first = new Date(m.getFullYear(), m.getMonth(), 1);
+        var start = new Date(first);
+        start.setDate(1 - ((first.getDay() + 6) % 7));            // ponedjeljak prvi
+        var today = new Date(); today.setHours(0, 0, 0, 0);
+
+        var byDay = {};
+        allTasks().forEach(function (t) {
+            if (!t.date_due) return;
+            var d = new Date(t.date_due * 1000);
+            var key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+            (byDay[key] = byDay[key] || []).push(t);
+        });
+
+        var html = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned']
+            .map(function (d) { return '<div class="cal-dow">' + d + '</div>'; }).join('');
+
+        for (var i = 0; i < 42; i++) {
+            var day = new Date(start); day.setDate(start.getDate() + i);
+            var key = day.getFullYear() + '-' + day.getMonth() + '-' + day.getDate();
+            var list = (byDay[key] || []).filter(visible);
+            var cls = 'cal-day';
+            if (day.getMonth() !== m.getMonth()) cls += ' is-out';
+            if (day.getTime() === today.getTime()) cls += ' is-today';
+            html += '<div class="' + cls + '"><div class="cal-num">' + day.getDate() + '</div>' +
+                list.map(function (t) {
+                    return '<div class="cal-task' + (t.column_id === lastColumnId() ? ' is-done' : '') + '" data-task="' + t.id + '"' +
+                        ' title="' + esc(t.title) + '"><span>' + esc(t.title) + '</span></div>';
+                }).join('') + '</div>';
+        }
+        $('calGrid').innerHTML = html;
+    }
+
+    function lastColumnId() {
+        var ids = [];
+        state.board.forEach(function (sw) { (sw.columns || []).forEach(function (c) { ids.push(c.id); }); });
+        return ids[ids.length - 1];
     }
 
     /* ---------------- auth ---------------- */
@@ -419,8 +559,10 @@
             if (!b) return;
             state.view = b.dataset.view;
             document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('is-active', x === b); });
-            board.hidden = state.view === 'list';
+            board.hidden = state.view !== 'board';
             $('listview').hidden = state.view !== 'list';
+            $('calendar').hidden = state.view !== 'calendar';
+            if (state.view === 'calendar') renderCalendar();
         });
 
         // board: open task, add task
@@ -433,6 +575,19 @@
         $('listview').addEventListener('click', function (e) {
             var row = e.target.closest('[data-task]');
             if (row) openTask(Number(row.dataset.task));
+        });
+        $('calPrev').addEventListener('click', function () {
+            state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() - 1, 1); renderCalendar();
+        });
+        $('calNext').addEventListener('click', function () {
+            state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() + 1, 1); renderCalendar();
+        });
+        $('calToday').addEventListener('click', function () {
+            var n = new Date(); state.calMonth = new Date(n.getFullYear(), n.getMonth(), 1); renderCalendar();
+        });
+        $('calGrid').addEventListener('click', function (e) {
+            var t = e.target.closest('[data-task]');
+            if (t) openTask(Number(t.dataset.task));
         });
 
         // drag & drop
@@ -486,19 +641,30 @@
             saveTask({ date_due: e.target.value || '' });
         });
         $('pPriority').addEventListener('click', function () {
-            var next = ((state.task.priority || 0) + 1) % 4;
-            saveTask({ priority: next });
+            openPop($('pPriority'), PRIORITY.map(function (p, i) {
+                return { label: p, active: (state.task.priority || 0) === i, value: i };
+            }), function (it) { saveTask({ priority: it.value }); });
+        });
+
+        $('pOwner').addEventListener('click', function () {
+            var items = [{ label: 'nitko', active: !state.task.owner_id, value: 0 }].concat(
+                state.members.map(function (m) {
+                    return { label: m.name, meta: initials(m.name), active: state.task.owner_id === m.id, value: m.id };
+                }));
+            if (!state.members.length) { toast('Nema članova na projektu.'); return; }
+            openPop($('pOwner'), items, function (it) { saveTask({ owner_id: it.value }).then(function () { openTask(state.task.id, true); }); });
         });
         $('pColor').addEventListener('click', function () {
-            var keys = Object.keys(COLOR_HEX);
-            var i = keys.indexOf(state.task.color_id);
-            saveTask({ color_id: keys[(i + 1) % keys.length] });
+            openPop($('pColor'), Object.keys(COLOR_HEX).map(function (k) {
+                return { label: k, dot: COLOR_HEX[k], active: state.task.color_id === k, value: k };
+            }), function (it) { saveTask({ color_id: it.value }).then(function () { openTask(state.task.id, true); }); });
         });
         $('pCategory').addEventListener('click', function () {
-            if (!state.categories.length) { toast('Nema kategorija u projektu.'); return; }
-            var i = state.categories.map(function (c) { return c.id; }).indexOf(state.task.category_id);
-            var nxt = state.categories[(i + 1) % state.categories.length];
-            saveTask({ category_id: nxt.id });
+            var items = [{ label: 'bez kategorije', active: !state.task.category_id, value: 0 }].concat(
+                (state.categories || []).map(function (c) {
+                    return { label: c.name, dot: COLOR_HEX[c.color_id] || '#888', active: state.task.category_id === c.id, value: c.id };
+                }));
+            openPop($('pCategory'), items, function (it) { saveTask({ category_id: it.value }).then(function () { openTask(state.task.id, true); }); });
         });
         $('pColumn').addEventListener('click', function () {
             var cols = [];
@@ -536,6 +702,13 @@
                 toast('Komentar dodan');
             }).catch(fail);
         });
+        $('dFileInput').addEventListener('change', function (e) { uploadFiles(e.target.files); e.target.value = ''; });
+        $('dFiles').addEventListener('click', function (e) {
+            var dl = e.target.closest('[data-dl]');
+            if (dl) { downloadFile(Number(dl.dataset.dl)); return; }
+            var del = e.target.closest('[data-del]');
+            if (del) removeFile(Number(del.dataset.del));
+        });
         $('dDelete').addEventListener('click', function () {
             if (!confirm('Obrisati zadatak "' + state.task.title + '"?')) return;
             api('removeTask', { task_id: state.task.id }).then(function () {
@@ -556,14 +729,45 @@
         $('authScrim').addEventListener('click', function () { $('authWrap').hidden = true; });
 
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') { closeDrawer(); $('authWrap').hidden = true; }
+            var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+
+            if (e.key === 'Escape') {
+                if (!$('popmenu').hidden) { closePop(); return; }
+                closeDrawer();
+                $('authWrap').hidden = true;
+                $('sideScrim').hidden = true;
+                document.querySelector('.side').classList.remove('is-open');
+                if (typing) document.activeElement.blur();
+                return;
+            }
+            if (typing) return;
+
+            if (e.key === '/') { e.preventDefault(); $('search').focus(); return; }
+            if (e.key === 't') { applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); return; }
+            if (e.key === 'n') {
+                e.preventDefault();
+                var first = document.querySelector('.cards');
+                if (first) newCardForm(first.dataset.drop, first);
+                return;
+            }
+            if (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4') {
+                var order = ['board', 'list', 'backlog', 'calendar'];
+                var tab = document.querySelector('.tab[data-view="' + order[Number(e.key) - 1] + '"]');
+                if (tab) tab.click();
+            }
         });
+
+        document.addEventListener('mousedown', function (e) {
+            var pop = $('popmenu');
+            if (!pop.hidden && !e.target.closest('#popmenu') && !e.target.closest('.chip')) closePop();
+        });
+        window.addEventListener('scroll', function () { if (!$('popmenu').hidden) closePop(); }, true);
     }
 
     function saveTask(patch) {
-        if (!state.task) return;
+        if (!state.task) return Promise.resolve();
         var body = Object.assign({ id: state.task.id }, patch);
-        api('updateTask', body).then(function () {
+        return api('updateTask', body).then(function () {
             Object.assign(state.task, patch);
             if (patch.title !== undefined) { state.task.title = patch.title; }
             renderBoard(); renderList();

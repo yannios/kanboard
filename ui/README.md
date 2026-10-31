@@ -38,6 +38,16 @@ Sučelje je prilagođeno za telefon (testirano na 390 px širine):
 - detalj zadatka je preko cijelog ekrana, svojstva su iznad teksta
 - svi gumbi su najmanje ~38 px za prst
 
+## Prečaci na tipkovnici
+
+| Tipka | Akcija |
+|---|---|
+| `/` | skoči u pretragu |
+| `1`–`4` | Zadaci / Lista / Zaostali / Kalendar |
+| `n` | novi zadatak u prvoj koloni |
+| `t` | tamna / svijetla tema |
+| `Esc` | zatvori zadatak, izbornik ili sidebar |
+
 ## Što radi
 
 - **Ploča**: kolone iz Kanboarda, kartice s ID-em (npr. `KUCA-1`), rokom
@@ -49,7 +59,10 @@ Sučelje je prilagođeno za telefon (testirano na 390 px širine):
   svojstva desno (status, prioritet, datum, kategorija, boja)
 - **Lista** i **Zaostali** pregled
 - **Pretraga** i **sortiranje** (po datumu / prioritetu)
-- **Tamna i svijetla tema** (prekidač na dnu sidebara)
+- **Tamna i svijetla tema** (prekidač na dnu sidebara, ili tipka `t`)
+- **Kalendar** — mjesečni prikaz zadataka po roku, s navigacijom po mjesecima
+- **Privici** — dodavanje, preuzimanje i brisanje datoteka na zadatku
+- **Dodjela zadatka** i **odabir kategorije/prioriteta/boje** preko padajućih izbornika
 
 ## Što još nije napravljeno
 
