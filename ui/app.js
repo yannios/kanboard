@@ -223,7 +223,11 @@
     function loadAll() {
         board.innerHTML = '<div class="col"><div class="empty">Učitavam…</div></div>';
         return api('getVersion').then(function (v) {
-            $('kbVer').textContent = /unknown|\$Format/.test(v) ? '1.2.57' : v;
+            // git checkout prijavljuje "main.<hash>" — prikaži čitljivu verziju
+            var short = String(v || '');
+            var m = short.match(/^main\.([0-9a-f]{7,})$/);
+            $('kbVer').textContent = m ? '1.2.57 · ' + m[1].slice(0, 7) : short;
+            $('kbVer').title = short;
             return api('getMe').then(function (me) { state.me = me; return me; }).catch(function () { return null; });
         }).then(function () {
             // getAllProjects je samo za app-admina (403 za običnog korisnika);
@@ -278,8 +282,9 @@
 
             if (!(state.projects || []).length) {
                 board.innerHTML = '<div class="col"><div class="empty">Još nema projekata.<br>' +
-                    'Napravi prvi projekt u Kanboardu: <a href="../" target="_blank" rel="noopener">otvori Kanboard</a>, ' +
-                    'pa osvježi ovu stranicu.</div></div>';
+                    'Napravi prvi projekt i odmah počni — kolone stižu automatski.' +
+                    '<br><button class="btn primary" data-newproject="1" style="margin-top:.7rem">＋ Napravi projekt</button>' +
+                    '</div></div>';
                 $('taskCount').textContent = '';
                 $('projName').textContent = 'bez projekta';
                 $('projIcon').textContent = '◻';
@@ -1503,6 +1508,7 @@
         });
         // projekti: novi + postavke
         $('newProjectBtn').addEventListener('click', function () { openNewProject(); });
+        $('addProjectHint').addEventListener('click', function () { openNewProject(); });
         $('newProjCancel').addEventListener('click', function () { $('newProjWrap').hidden = true; });
         $('newProjScrim').addEventListener('click', function () { $('newProjWrap').hidden = true; });
         $('newProjSave').addEventListener('click', createProject);
@@ -1668,6 +1674,7 @@
 
         // board: open task, add task
         board.addEventListener('click', function (e) {
+            if (e.target.closest('[data-newproject]')) { openNewProject(); return; }
             var col = e.target.closest('[data-collapse]');
             if (col) {
                 var id = Number(col.dataset.collapse);
