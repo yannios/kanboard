@@ -261,6 +261,7 @@
             fillFilterSelects();
             refreshFilterBar();
             countMine();
+            $('usersBtn').hidden = !(state.me && state.me.role === 'app-admin');
             var firstTasks = [];
             (state.board || []).forEach(function (sw) {
                 (sw.columns || []).forEach(function (c) {
@@ -971,6 +972,116 @@
         return true;
     }
 
+    /* ---------------- users (app admin) ---------------- */
+    var userEditId = null;
+
+    function openUsers() {
+        if (!(state.me && state.me.role === 'app-admin')) { toast('Korisnike uređuje administrator.'); return; }
+        resetUserForm();
+        $('usersWrap').hidden = false;
+        renderUsers();
+    }
+
+    function resetUserForm() {
+        userEditId = null;
+        $('ufTitle').textContent = 'Novi korisnik';
+        $('ufUsername').value = '';
+        $('ufPassword').value = '';
+        $('ufName').value = '';
+        $('ufEmail').value = '';
+        $('ufRole').value = 'app-user';
+        $('ufPassword').disabled = false;
+        $('ufCancel').hidden = true;
+        $('ufSave').textContent = 'Spremi';
+    }
+
+    function renderUsers() {
+        api('getAllUsers').then(function (us) {
+            $('usersBody').innerHTML = (us || []).map(function (u) {
+                var active = Number(u.is_active) === 1;
+                return '<div class="pm-row" data-user="' + u.id + '">' +
+                    '<span class="pm-name">' + esc(u.name || u.username) +
+                    (u.name && u.name !== u.username ? ' <span class="pm-meta">@' + esc(u.username) + '</span>' : '') + '</span>' +
+                    '<span class="chip">' + (u.role === 'app-admin' ? 'Administrator' : 'Korisnik') + '</span>' +
+                    (active ? '' : '<span class="chip">neaktivan</span>') +
+                    '<button class="icon-btn sm" data-uact="edit" title="Uredi">✎</button>' +
+                    '<button class="icon-btn sm" data-uact="toggle" title="' + (active ? 'Onemogući' : 'Omogući') + '">' +
+                    (active ? '⏸' : '▶') + '</button>' +
+                    '<button class="icon-btn sm" data-uact="del" title="Obriši">✕</button>' +
+                    '</div>';
+            }).join('') || '<div class="pm-note">Nema korisnika.</div>';
+        }).catch(function (e) {
+            $('usersBody').innerHTML = '<div class="pm-note">Greška: ' + esc(e.message || e) + '</div>';
+        });
+    }
+
+    function editUser(id) {
+        api('getUser', { user_id: id }).then(function (u) {
+            if (!u) throw new Error('Korisnik nije pronađen.');
+            userEditId = Number(u.id);
+            $('ufTitle').textContent = 'Uredi: ' + (u.name || u.username);
+            $('ufUsername').value = u.username || '';
+            $('ufName').value = u.name || '';
+            $('ufEmail').value = u.email || '';
+            $('ufRole').value = u.role === 'app-admin' ? 'app-admin' : 'app-user';
+            $('ufPassword').value = '';
+            $('ufPassword').disabled = true;
+            $('ufCancel').hidden = false;
+            $('ufSave').textContent = 'Spremi izmjene';
+        }).catch(function (e) {
+            $('usersBody').innerHTML = '<div class="pm-note">Greška: ' + esc(e.message || e) + '</div>';
+        });
+    }
+
+    function saveUser() {
+        var username = $('ufUsername').value.trim();
+        var password = $('ufPassword').value;
+        var name = $('ufName').value.trim();
+        var email = $('ufEmail').value.trim();
+        var role = $('ufRole').value;
+
+        if (!username) { toast('Upiši korisničko ime.'); return; }
+        if (!userEditId && password.length < 1) { toast('Upiši lozinku.'); return; }
+
+        $('ufSave').disabled = true;
+        var call = userEditId
+            ? api('updateUser', { id: userEditId, username: username, name: name, email: email, role: role })
+            : api('createUser', { username: username, password: password, name: name, email: email, role: role });
+
+        call.then(function (res) {
+            $('ufSave').disabled = false;
+            if (!res) throw new Error('Kanboard je odbio zapis (postoji li to ime već?).');
+            toast(userEditId ? 'Korisnik spremljen' : 'Korisnik stvoren');
+            resetUserForm();
+            renderUsers();
+            loadAll();
+        }).catch(function (e) {
+            $('ufSave').disabled = false;
+            toast('Greška: ' + (e.message || e));
+        });
+    }
+
+    function userAction(act, row) {
+        var id = Number(row.dataset.user);
+        if (act === 'edit') { editUser(id); return; }
+        if (act === 'toggle') {
+            var disable = !!row.querySelector('[data-uact="toggle"]') &&
+                row.querySelector('[data-uact="toggle"]').textContent.trim() === '⏸';
+            api(disable ? 'disableUser' : 'enableUser', { user_id: id }).then(function () {
+                toast(disable ? 'Korisnik onemogućen' : 'Korisnik omogućen');
+                renderUsers();
+            }).catch(function (e) { toast('Greška: ' + (e.message || e)); });
+            return;
+        }
+        if (act === 'del') {
+            if (!confirm('Obrisati korisnika? Zadaci ostaju, ali bez vlasnika.')) return;
+            api('removeUser', { user_id: id }).then(function () {
+                toast('Korisnik obrisan');
+                renderUsers();
+            }).catch(function (e) { toast('Greška: ' + (e.message || e)); });
+        }
+    }
+
     /* ---------------- overdue (all projects) ---------------- */
     var overdueMode = 'overdue';   // 'overdue' | 'closed'
 
@@ -1202,7 +1313,15 @@
                       '</select><select id="pmUserRole">' +
                       Object.keys(PM_ROLES).map(function (r) { return '<option value="' + r + '">' + PM_ROLES[r] + '</option>'; }).join('') +
                       '</select><button class="btn primary" data-act="useradd">Dodaj</button></div>'
-                    : '<p class="pm-note">Svi korisnici su već na projektu. Nove korisnike praviš u Kanboardu (Korisnici).</p>');
+                    : '<p class="pm-note">Svi korisnici su već na projektu.</p>');
+
+                // točna uloga po korisniku (getProjectUsers vraća samo imena)
+                members.forEach(function (m) {
+                    api('getProjectUserRole', { project_id: state.project.id, user_id: m.id }).then(function (role) {
+                        var sel = host.querySelector('[data-user="' + m.id + '"] .pm-role');
+                        if (sel && role) sel.value = role;
+                    }).catch(function () {});
+                });
             }).catch(pmErr);
             return;
         }
@@ -1770,6 +1889,15 @@
         });
         // projekti: novi + postavke
         $('newProjectBtn').addEventListener('click', function () { openNewProject(); });
+        $('usersBtn').addEventListener('click', function (e) { e.preventDefault(); openUsers(); });
+        $('usersClose').addEventListener('click', function () { $('usersWrap').hidden = true; });
+        $('usersScrim').addEventListener('click', function () { $('usersWrap').hidden = true; });
+        $('ufSave').addEventListener('click', saveUser);
+        $('ufCancel').addEventListener('click', resetUserForm);
+        $('usersBody').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-uact]');
+            if (b) userAction(b.dataset.uact, b.closest('.pm-row'));
+        });
         $('addProjectHint').addEventListener('click', function () { openNewProject(); });
         $('newProjCancel').addEventListener('click', function () { $('newProjWrap').hidden = true; });
         $('newProjScrim').addEventListener('click', function () { $('newProjWrap').hidden = true; });
@@ -2107,13 +2235,16 @@
         });
 
         $('pOwner').addEventListener('click', function () {
-            var items = [{ label: 'nitko', active: !state.task.owner_id, value: 0 }].concat(
-                state.members.map(function (m) {
-                    return { label: m.name, meta: initials(m.name), active: state.task.owner_id === m.id, value: m.id };
-                }));
-            if (!state.members.length) { toast('Nema članova na projektu.'); return; }
-            openPop($('pOwner'), items, function (it) { saveTask({ owner_id: it.value }).then(function () { openTask(state.task.id, true); }); });
+            api('getAssignableUsers', { project_id: state.project.id }).then(function (u) {
+                var items = [{ label: 'nitko', value: 0 }].concat(
+                    Object.keys(u || {}).map(function (k) { return { label: u[k], meta: initials(u[k]), value: Number(k) }; })
+                );
+                openPop($('pOwner'), items, function (it) {
+                    saveTask({ owner_id: it.value }).then(function () { openTask(state.task.id, true); });
+                });
+            }).catch(fail);
         });
+
         $('pColor').addEventListener('click', function () {
             openPop($('pColor'), Object.keys(COLOR_HEX).map(function (k) {
                 return { label: k, dot: COLOR_HEX[k], active: state.task.color_id === k, value: k };

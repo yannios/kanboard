@@ -25,6 +25,7 @@
     <a href="#" class="nav-item" data-nav="mine"><span class="ni">◉</span> Moji zadaci <span class="badge" id="mineCount">0</span></a>
     <a href="#" class="nav-item" data-nav="all"><span class="ni">≡</span> Svi zadaci <span class="badge" id="allCount">0</span></a>
     <a href="#" class="nav-item" data-nav="members"><span class="ni">◍</span> Članovi</a>
+    <a href="#" class="nav-item" id="usersBtn" hidden><span class="ni">☺</span> Korisnici</a>
   </nav>
 
   <div class="side-label">Projekti <button class="icon-btn sm" id="addProjectHint" title="Novi projekt">+</button></div>
@@ -213,6 +214,37 @@
 </div>
 
 <!-- ============ AUTH DIALOG ============ -->
+<div class="modal-wrap" id="usersWrap" hidden>
+  <div class="scrim" id="usersScrim"></div>
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>Korisnici</h3>
+      <button class="icon-btn sm" id="usersClose" title="Zatvori">✕</button>
+    </div>
+    <div class="pm-body" id="usersBody"></div>
+    <div class="pm-danger">
+      <h4 style="margin:0 0 .5rem;font-size:.85rem" id="ufTitle">Novi korisnik</h4>
+      <div class="pm-add">
+        <input id="ufUsername" placeholder="korisničko ime" autocomplete="off">
+        <input id="ufPassword" type="password" placeholder="lozinka" autocomplete="new-password">
+      </div>
+      <div class="pm-add">
+        <input id="ufName" placeholder="ime i prezime">
+        <input id="ufEmail" type="email" placeholder="e-mail">
+      </div>
+      <div class="pm-add">
+        <select id="ufRole">
+          <option value="app-user">Korisnik</option>
+          <option value="app-admin">Administrator</option>
+        </select>
+        <button class="btn primary" id="ufSave">Spremi</button>
+        <button class="btn" id="ufCancel" hidden>Odustani</button>
+      </div>
+      <p class="pm-note">Lozinku postavljaš pri kreiranju. Kasnija promjena lozinke ide u Kanboardu (Moj profil) — API je ne dopušta.</p>
+    </div>
+  </div>
+</div>
+
 <div class="modal-wrap" id="newProjWrap" hidden>
   <div class="scrim" id="newProjScrim"></div>
   <div class="modal">
