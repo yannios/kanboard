@@ -47,6 +47,7 @@
         links: [],
         linkTypes: [],
         tlDay: 30,
+        tlShift: 0,      // pomak prikaza vremenske crte u danima
         aggregate: false,
         all: [],
         readonly: false
@@ -1840,6 +1841,10 @@
         // pad to whole weeks
         var start = dayKey(new Date(min)); start -= new Date(start).getDay() * 86400000;
         var end = max + 7 * 86400000;
+
+        // ◀ / ▶ pomiču prikaz za 4 tjedna; "Danas" vraća na početak
+        start += (state.tlShift || 0) * 86400000;
+        end += (state.tlShift || 0) * 86400000;
         var days = Math.round((end - start) / 86400000);
         var W = state.tlDay;
         var totalW = days * W;
@@ -1887,7 +1892,8 @@
                     '<div class="tl-track" style="width:' + totalW + 'px">' +
                     '<div class="tl-bar' + (due && due.overdue ? ' is-overdue' : '') + '" data-task="' + t.id + '"' +
                     ' style="left:' + left + 'px;width:' + width + 'px;background:' + col + '"' +
-                    ' title="' + esc(prettyDate(t.date_started || t.date_creation) + ' → ' + prettyDate(t.date_due)) + '"></div>' +
+                    ' title="' + esc(prettyDate(t.date_started || t.date_creation) + ' → ' + prettyDate(t.date_due)) + '">' +
+                    '<span class="tl-resize" data-resize="' + t.id + '"></span></div>' +
                     (dayKey(new Date(today)) >= start && today <= end
                         ? '<div class="tl-today" style="left:' + (((today - start) / 86400000) * W) + 'px"></div>' : '') +
                     '</div></div>';
@@ -1903,9 +1909,11 @@
 
         $('tlRange').textContent = prettyDate(start / 1000) + ' – ' + prettyDate(end / 1000);
         // skrolaj na danas
-        setTimeout(function () {
-            host.scrollLeft = Math.max(0, todayX - host.clientWidth / 3);
-        }, 30);
+        if (!state.tlShift) {
+            setTimeout(function () {
+                host.scrollLeft = Math.max(0, todayX - host.clientWidth / 3);
+            }, 30);
+        }
     }
 
     // Svi datumi u UI-u su dd.mm.yyyy, neovisno o jeziku preglednika.
@@ -2354,7 +2362,69 @@
         $('tlZoomOut').addEventListener('click', function () {
             state.tlDay = Math.max(14, state.tlDay - 10); renderTimeline();
         });
+        $('tlPrev').addEventListener('click', function () {
+            state.tlShift = (state.tlShift || 0) - 28;
+            renderTimeline();
+        });
+        $('tlNext').addEventListener('click', function () {
+            state.tlShift = (state.tlShift || 0) + 28;
+            renderTimeline();
+        });
+        // rastezanje kraja zadatka mišem: početak ostaje fiksan
+        $('tlScroll').addEventListener('mousedown', function (e) {
+            var h = e.target.closest('.tl-resize');
+            if (!h) return;
+            e.preventDefault();
+
+            var bar = h.parentElement;
+            var taskId = Number(h.dataset.resize);
+            var W = state.tlDay;
+            var startX = e.clientX;
+            var baseW = parseFloat(bar.style.width) || W;
+            bar.style.opacity = '1';
+
+            var tip = document.createElement('div');
+            tip.className = 'tl-tip';
+            document.body.appendChild(tip);
+
+            var task = allTasks().filter(function (t) { return t.id === taskId; })[0];
+            if (!task) return;
+            var startTs = dayKey(new Date(((task.date_started || task.date_creation) * 1000)));
+
+            var move = function (ev) {
+                var w = Math.max(W, baseW + (ev.clientX - startX));
+                bar.style.width = w + 'px';
+                var days = Math.max(0, Math.round(w / W) - 1);
+                var d = new Date(startTs + days * 86400000);
+                tip.textContent = fmtDate(d.getTime() / 1000) + ' (' + (days + 1) + ' d)';
+                tip.style.left = (ev.clientX + 12) + 'px';
+                tip.style.top = (ev.clientY - 26) + 'px';
+                tip.dataset.days = days;
+            };
+
+            var up = function () {
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', up);
+                tip.remove();
+                bar.style.opacity = '';
+                var days = Number(tip.dataset.days || 0);
+                var d = new Date(startTs + days * 86400000);
+                var iso = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+                api('updateTask', { id: taskId, date_due: iso + ' 00:00' }).then(function () {
+                    toast('Rok: ' + fmtDate(d.getTime() / 1000));
+                    refreshBoardOnly();
+                    renderTimeline();
+                }).catch(fail);
+            };
+
+            move(e);
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', up);
+        });
         $('tlToday').addEventListener('click', function () {
+            var shifted = !!state.tlShift;
+            state.tlShift = 0;
+            if (shifted) { renderTimeline(); return; }
             var host = $('tlScroll');
             var marker = host.querySelector('.tl-days .is-today');
             if (marker) host.scrollLeft = Math.max(0, marker.offsetLeft - host.clientWidth / 3);

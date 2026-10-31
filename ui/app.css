@@ -680,6 +680,18 @@ body.is-readonly #dCommentSend { display: none !important; }
 
 .tl-track { position: relative; flex: 0 0 auto; min-height: 1.9rem; }
 .tl-bar { position: absolute; top: .45rem; height: 1rem; border-radius: 999px; opacity: .85; cursor: pointer; }
+.tl-resize {
+    position: absolute; right: 0; top: 0; bottom: 0; width: .55rem;
+    cursor: ew-resize; border-radius: 0 999px 999px 0;
+    background: rgba(255, 255, 255, .35); opacity: 0; transition: opacity .12s;
+}
+.tl-bar:hover .tl-resize { opacity: 1; }
+.tl-tip {
+    position: fixed; z-index: 90; pointer-events: none;
+    padding: .2rem .45rem; border-radius: var(--r-sm);
+    background: var(--surface-3); border: 1px solid var(--border-2);
+    font: 400 .72rem/1 var(--mono); color: var(--text);
+}
 .tl-bar:hover { opacity: 1; }
 .tl-bar.is-overdue { outline: 1px solid var(--danger); }
 .tl-today { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); opacity: .85; pointer-events: none; }
