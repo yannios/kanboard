@@ -74,11 +74,8 @@ $userId = (int) ($_SESSION['kbui_uid'] ?? 0);
 $token = (string) ($_SESSION['kbui_token'] ?? '');
 
 if ($userId <= 0 || $token === '') {
-    @file_put_contents(__DIR__ . '/_debug.log', date('H:i:s') . " 401 sid=" . session_id() .
-        " keys=" . implode(',', array_keys($_SESSION)) . " cookies=" . json_encode(array_keys($_COOKIE)) . "\n", FILE_APPEND);
     kbui_rpc_error(401, 401, 'Not logged in');
 }
-@file_put_contents(__DIR__ . '/_debug.log', date('H:i:s') . " OK sid=" . session_id() . " uid=$userId\n", FILE_APPEND);
 
 $user = $container['userModel']->getById($userId);
 
