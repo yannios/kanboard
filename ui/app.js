@@ -268,7 +268,6 @@
                 });
             });
             probePermission(firstTasks);
-            loadAggregate();   // samo za broj u navigaciji
             var t = localStorage.getItem('kbui.task');
             if (t) openTask(Number(t), true);
         }).catch(function (e) {
@@ -607,10 +606,11 @@
             $('pColor').innerHTML = '<span class="dot" style="background:' + (COLOR_HEX[t.color_id] || 'var(--text-3)') + '"></span>' + (t.color_id || 'grey');
             $('pDue').value = fmtDate(t.date_due);
             $('pStart').value = fmtDate(t.date_started);
-            $('pTimeSpent').value = t.time_spent ? +(t.time_spent / 3600).toFixed(2) : '';
-            $('pTimeEst').value = t.time_estimated ? +(t.time_estimated / 3600).toFixed(2) : '';
+            $('pTimeSpent').value = t.time_spent ? +(Number(t.time_spent)).toFixed(2) : '';
+            $('pTimeEst').value = t.time_estimated ? +(Number(t.time_estimated)).toFixed(2) : '';
             $('pOwner').textContent = ownerName(t.owner_id) || 'nitko';
             $('dCloseTask').textContent = t.is_active ? 'Zatvori zadatak' : 'Ponovno otvori';
+            renderTimeSummary();
             $('drawerWrap').hidden = false;
             autosize($('dTitle'));
             return Promise.all([
@@ -622,7 +622,9 @@
                 api('getTaskTags', { task_id: t.id }).catch(function () { return {}; })
             ]);
         }).then(function (res) {
-            renderSubtasks(res[0] || []);
+            var subs = res[0] || [];
+            renderSubtasks(subs);
+            renderTimeSummary();
             renderComments(res[1] || []);
             renderFiles(res[2] || []);
             state.linkTypes = res[4] || [];
@@ -646,13 +648,23 @@
     }
 
     function renderSubtasks(subs) {
+        state.subtasks = subs || [];
         var t = state.task;
         var done = subs.filter(function (s) { return s.status == 1; }).length;
         $('dSubCount').textContent = subs.length ? done + '/' + subs.length : '';
         $('dSubtasks').innerHTML = subs.map(function (s) {
-            return '<label class="sub' + (s.status == 1 ? ' done' : '') + '">' +
+            var spent = Number(s.time_spent || 0);   // sati
+            var running = !!s.is_timer_started;   // Kanboard vraća true/false, ne 1/0
+            var mine = !s.user_id || Number(s.user_id) === Number(state.me && state.me.id);
+            return '<div class="sub-row' + (s.status == 1 ? ' done' : '') + '">' +
+                '<label class="sub">' +
                 '<input type="checkbox" data-sub="' + s.id + '"' + (s.status == 1 ? ' checked' : '') + '>' +
-                '<span>' + esc(s.title) + '</span></label>';
+                '<span>' + esc(s.title) + '</span></label>' +
+                (spent ? '<span class="sub-time">' + fmtHours(spent) + '</span>' : '') +
+                (state.readonly || !mine ? '' :
+                    '<button class="icon-btn sm sub-timer' + (running ? ' is-running' : '') + '" data-timer="' + s.id + '"' +
+                    ' title="' + (running ? 'Zaustavi timer' : 'Pokreni timer') + '">' + (running ? '■' : '▶') + '</button>') +
+                '</div>';
         }).join('') || '<div class="muted" style="font-size:12.5px;padding:4px 6px">Nema podzadataka.</div>';
     }
 
@@ -911,6 +923,52 @@
             // Kanboard za nedovoljna prava vraća 403 "Forbidden"
             setReadonly(e && e.code === 403 || /not allowed|permission|dopu|denied|forbidden/i.test(msg));
         });
+    }
+
+    // Premještanje kartice samo po lokalnom stanju: nema smisla ponovno
+    // učitavati 16 zahtjeva (0,4 s svaki) zbog jednog povlačenja.
+    function applyMove(taskId, columnId, swimlaneId) {
+        var moved = null, origin = null;
+
+        (state.board || []).forEach(function (sw) {
+            (sw.columns || []).forEach(function (c) {
+                var list = c.tasks || [];
+                for (var i = 0; i < list.length; i++) {
+                    if (list[i].id === taskId) {
+                        moved = list.splice(i, 1)[0];
+                        origin = c;
+                        break;
+                    }
+                }
+            });
+        });
+
+        if (!moved) return false;
+
+        var target = null;
+        (state.board || []).forEach(function (sw) {
+            if (Number(sw.id) !== Number(swimlaneId)) return;
+            (sw.columns || []).forEach(function (c) {
+                if (Number(c.id) === Number(columnId)) target = c;
+            });
+        });
+
+        if (!target) {
+            if (origin) (origin.tasks = origin.tasks || []).push(moved);
+            return false;
+        }
+
+        moved.column_id = columnId;
+        moved.swimlane_id = swimlaneId;
+        target.tasks = target.tasks || [];
+        target.tasks.push(moved);
+
+        renderBoard();
+        renderList();
+        if (state.view === 'calendar') renderCalendar();
+        if (state.view === 'timeline') renderTimeline();
+        if (state.view === 'backlog') renderOverdue();
+        return true;
     }
 
     /* ---------------- overdue (all projects) ---------------- */
@@ -1312,6 +1370,34 @@
     }
 
     /* ---------------- tags ---------------- */
+    function toggleTimer(subtaskId) {
+        if (!state.task || !state.me) return;
+        var st = (state.subtasks || []).filter(function (s) { return Number(s.id) === Number(subtaskId); })[0];
+        var running = !!(st && st.is_timer_started);
+
+        var call = running ? 'setSubtaskEndTime' : 'setSubtaskStartTime';
+        api(call, { subtask_id: subtaskId, user_id: state.me.id }).then(function (ok) {
+            if (!ok) throw new Error('Timer nije moguće promijeniti.');
+            toast(running ? 'Timer zaustavljen' : 'Timer pokrenut');
+            openTask(state.task.id, true);
+        }).catch(fail);
+    }
+
+    function renderTimeSummary() {
+        var t = state.task || {};
+        var subSum = (state.subtasks || []).reduce(function (a, s) { return a + (Number(s.time_spent) || 0); }, 0);
+        var spent = Number(t.time_spent || 0) || subSum;
+        var est = Number(t.time_estimated || 0);
+        var el = $('dTimeSum');
+        if (!el) return;
+        if (!spent && !est) { el.textContent = ''; el.hidden = true; return; }
+        el.hidden = false;
+        el.className = 'time-sum' + (est && spent > est ? ' over' : '');
+        el.textContent = 'Potrošeno ' + fmtHours(spent) + (est ? ' od ' + fmtHours(est) : '') +
+            (subSum && !Number(t.time_spent || 0) ? ' (iz podzadataka)' : '') +
+            (est && spent > est ? ' — prekoračeno' : '');
+    }
+
     function renderTags(obj) {
         state.tags = obj || {};
         var names = Object.keys(state.tags).map(function (k) { return state.tags[k]; });
@@ -1486,6 +1572,14 @@
     }
 
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    // Kanboard čuva vrijeme u SATIMA (0.02 = ~1 min, 1.5 = 1,5 h)
+    function fmtHours(hours) {
+        var h = Number(hours) || 0;
+        if (!h) return '0';
+        if (h < 1) return Math.round(h * 60) + ' min';
+        return (Math.round(h * 100) / 100).toString().replace('.', ',') + ' h';
+    }
 
     function fmtDateTime(ts) {
         if (!ts) return '';
@@ -1927,13 +2021,28 @@
             var colId = Number(zone.dataset.drop);
             var swimlane = Number(zone.closest('.col').dataset.swimlane);
             var pos = zone.querySelectorAll('.card').length + 1;
+            // prvo pomakni u pregledniku (trenutno), pa zapiši na poslužitelj;
+            // ako upis padne, vrati karticu na staro mjesto
+            var prevCol = null, prevLane = null;
+            var cardEl = document.querySelector('.card[data-task="' + id + '"]');
+            if (cardEl) {
+                var src = cardEl.closest('.col');
+                prevCol = Number(src.dataset.column);
+                prevLane = Number(src.dataset.swimlane);
+            }
+
+            applyMove(id, colId, swimlane);
+
             api('moveTaskPosition', {
                 project_id: state.project.id, task_id: id, column_id: colId,
                 position: pos, swimlane_id: swimlane
-            }).then(function () {
+            }).then(function (ok) {
+                if (ok === false) throw new Error('Kanboard nije prihvatio premještanje.');
                 toast('Zadatak prebačen');
-                loadAll();
-            }).catch(fail);
+            }).catch(function (e) {
+                if (prevCol !== null) applyMove(id, prevCol, prevLane);
+                fail(e);
+            });
         });
 
         // drawer
@@ -1952,8 +2061,9 @@
                 var hours = parseFloat(e.target.value);
                 if (isNaN(hours) || hours < 0) hours = 0;
                 var patch = {};
-                patch[id === 'pTimeSpent' ? 'time_spent' : 'time_estimated'] = Math.round(hours * 3600);
-                saveTask(patch);
+                // Kanboard očekuje sate kao decimalni broj (1.5 = 1,5 h)
+                patch[id === 'pTimeSpent' ? 'time_spent' : 'time_estimated'] = Math.round(hours * 100) / 100;
+                saveTask(patch).then(function () { renderTimeSummary(); });
             });
         });
         $('dTagInput').addEventListener('keydown', function (e) {
@@ -2034,6 +2144,10 @@
                 openTask(state.task.id, true);
                 toast('Podzadatak dodan');
             }).catch(fail);
+        });
+        $('dSubtasks').addEventListener('click', function (e) {
+            var tm = e.target.closest('[data-timer]');
+            if (tm) { e.preventDefault(); toggleTimer(Number(tm.dataset.timer)); }
         });
         $('dSubtasks').addEventListener('change', function (e) {
             var cb = e.target.closest('[data-sub]');

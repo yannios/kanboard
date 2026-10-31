@@ -498,6 +498,16 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
    TASK DRAWER: tags, time, comment editing
    ============================================================ */
 
+.sub-row { display: flex; align-items: center; gap: .4rem; padding: .1rem 0; }
+.sub-row .sub { flex: 1; min-width: 0; }
+.sub-row.done .sub span { color: var(--text-3); text-decoration: line-through; }
+.sub-time { flex: 0 0 auto; font: 400 .7rem/1 var(--mono); color: var(--text-3); }
+.sub-timer { flex: 0 0 auto; color: var(--text-3); }
+.sub-timer:hover { color: var(--accent); }
+.sub-timer.is-running { color: var(--ok); }
+.time-sum { font-size: .76rem; color: var(--text-3); }
+.time-sum.over { color: var(--danger); }
+
 .datefield { display: flex; align-items: center; gap: .3rem; }
 .datefield input[type="text"] {
     width: 7.2rem; height: 1.85rem; padding: 0 .45rem;
