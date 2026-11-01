@@ -251,7 +251,7 @@
             localStorage.setItem('kbui.project', state.project.id);
             renderProjects();   // sada znamo koji je aktivan — označi ga u popisu
             $('projName').textContent = state.project.name;
-            $('projIcon').textContent = ref(state.project).slice(0, 2).toUpperCase();
+            $('projIcon').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7.6A1.6 1.6 0 0 1 5.2 6h3.6l2 2.2h8A1.6 1.6 0 0 1 20.4 9.8v7.6a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z"/></svg>';
             return Promise.all([
                 api('getBoard', { project_id: state.project.id }),
                 api('getAllCategories', { project_id: state.project.id }).catch(function () { return []; }),
@@ -305,7 +305,7 @@
                     '</div></div>';
                 $('taskCount').textContent = '';
                 $('projName').textContent = 'bez projekta';
-                $('projIcon').textContent = '◻';
+                $('projIcon').innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7.6A1.6 1.6 0 0 1 5.2 6h3.6l2 2.2h8A1.6 1.6 0 0 1 20.4 9.8v7.6a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z"/></svg>';
                 renderProjects();
                 return;
             }

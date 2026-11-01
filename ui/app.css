@@ -227,9 +227,9 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .crumbs { display: flex; align-items: center; gap: .5rem; font-size: .95rem; min-width: 0; }
 .crumbs strong { font-weight: 510; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-icon {
-    width: 1.4rem; height: 1.4rem; border-radius: .35rem; flex: 0 0 auto;
-    display: grid; place-items: center; font-size: .75rem;
-    background: var(--surface-3); color: var(--text-2);
+    width: 1.35rem; height: 1.35rem; flex: 0 0 auto;
+    display: grid; place-items: center;
+    color: var(--accent);
 }
 .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: .4rem; }
 
