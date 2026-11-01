@@ -580,28 +580,41 @@
 
     /* ---------------- render: list view ---------------- */
     function renderList() {
-        var cols = [];
+        // kolone se ponavljaju po stazama — uzmi svaku jednom
+        var cols = [], seen = {};
         state.board.forEach(function (sw) {
-            (sw.columns || []).forEach(function (c) { cols.push(c); });
+            (sw.columns || []).forEach(function (c) {
+                if (!seen[c.id]) { seen[c.id] = 1; cols.push(c); }
+            });
         });
-        $('listview').innerHTML = cols.map(function (c) {
+
+        var rows = cols.map(function (c) {
             var tasks = sortTasks((c.tasks || []).filter(function (t) { return t.is_active && visible(t); }));
-            return '<div class="lv-group"><div class="lv-head">' + esc(c.title) +
-                ' <span class="col-num">' + tasks.length + '</span></div>' +
+            if (!tasks.length) return '';
+            return '<div class="agg-proj"><span class="pcode">' + esc(c.title) + '</span>' +
+                '<span class="col-num">' + tasks.length + '</span></div>' +
                 tasks.map(function (t) {
                     var due = dueInfo(t.date_due);
                     var id = t.reference || (ref(state.project) + '-' + t.id);
-                    return '<div class="lv-row" data-task="' + t.id + '">' +
+                    var who = t.assignee_name || ownerName(t.owner_id);
+                    return '<div class="agg-row" data-task="' + t.id + '">' +
                         '<span class="card-id">' + esc(id) + '</span>' +
-                        '<span class="lv-title">' + esc(t.title) + '</span>' +
+                        '<span class="agg-title">' + esc(t.title) + '</span>' +
                         (t.nb_subtasks ? '<span class="chip mono">' + ICO.sub + ' ' +
                             (t.nb_completed_subtasks || 0) + '/' + t.nb_subtasks + '</span>' : '') +
-                        (due ? '<span class="chip mono' + (due.overdue ? ' due-over' : due.soon ? ' due-soon' : '') + '">' + ICO.due + ' ' + due.text + '</span>' : '') +
-                        (t.category_name ? '<span class="chip"><span class="dot" style="background:' + (COLOR_HEX[t.category_color_id] || 'var(--text-3)') + '"></span>' + esc(t.category_name) + '</span>' : '') +
-                        ((t.assignee_name || ownerName(t.owner_id)) ? '<span class="assignee">' + initials(t.assignee_name || ownerName(t.owner_id)) + '</span>' : '') +
+                        (t.category_name ? '<span class="chip"><span class="dot" style="background:' +
+                            (COLOR_HEX[t.category_color_id] || 'var(--text-3)') + '"></span>' +
+                            esc(t.category_name) + '</span>' : '') +
+                        (due ? '<span class="chip mono' + (due.overdue ? ' due-over' : due.soon ? ' due-soon' : '') + '">' +
+                            ICO.due + ' ' + (t.date_due ? fmtDate(t.date_due) : due.text) + '</span>' : '') +
+                        (who ? '<span class="assignee" title="' + esc(who) + '">' + initials(who) + '</span>' : '') +
                         '</div>';
-                }).join('') + '</div>';
-        }).join('') || '<div class="empty">Nema zadataka.</div>';
+                }).join('');
+        }).join('');
+
+        $('listview').innerHTML = rows
+            ? '<div class="agg-body" style="height:auto;max-height:none">' + rows + '</div>'
+            : '<div class="empty">Nema zadataka.</div>';
     }
 
     /* ---------------- task drawer ---------------- */
