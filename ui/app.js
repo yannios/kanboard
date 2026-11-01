@@ -663,15 +663,16 @@
     function renderSubtasks(subs) {
         state.subtasks = subs || [];
         var t = state.task;
-        var done = subs.filter(function (s) { return s.status == 1; }).length;
+        // Kanboard: 0 = za napraviti, 1 = u tijeku, 2 = gotovo
+        var done = subs.filter(function (s) { return Number(s.status) === 2; }).length;
         $('dSubCount').textContent = subs.length ? done + '/' + subs.length : '';
         $('dSubtasks').innerHTML = subs.map(function (s) {
             var spent = Number(s.time_spent || 0);   // sati
             var running = !!s.is_timer_started;   // Kanboard vraća true/false, ne 1/0
             var mine = !s.user_id || Number(s.user_id) === Number(state.me && state.me.id);
-            return '<div class="sub-row' + (s.status == 1 ? ' done' : '') + '">' +
+            return '<div class="sub-row' + (Number(s.status) === 2 ? ' done' : '') + '">' +
                 '<label class="sub">' +
-                '<input type="checkbox" data-sub="' + s.id + '"' + (s.status == 1 ? ' checked' : '') + '>' +
+                '<input type="checkbox" data-sub="' + s.id + '"' + (Number(s.status) === 2 ? ' checked' : '') + '>' +
                 '<span>' + esc(s.title) + '</span></label>' +
                 (spent ? '<span class="sub-time">' + fmtHours(spent) + '</span>' : '') +
                 (state.readonly || !mine ? '' :
@@ -2616,7 +2617,7 @@
         $('dSubtasks').addEventListener('change', function (e) {
             var cb = e.target.closest('[data-sub]');
             if (!cb) return;
-            api('updateSubtask', { id: Number(cb.dataset.sub), task_id: state.task.id, status: cb.checked ? 1 : 0 })
+            api('updateSubtask', { id: Number(cb.dataset.sub), task_id: state.task.id, status: cb.checked ? 2 : 0 })
                 .then(function () {
                     openTask(state.task.id, true);
                     refreshBoardOnly();
