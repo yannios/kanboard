@@ -1076,6 +1076,7 @@
         $('ufPassword').disabled = false;
         $('ufCancel').hidden = true;
         $('ufSave').textContent = 'Spremi';
+        if ($('ufError')) { $('ufError').hidden = true; $('ufError').textContent = ''; }
     }
 
     function renderUsers() {
@@ -1116,36 +1117,64 @@
         });
     }
 
+    function userFormError(msg) {
+        var el = $('ufError');
+        if (!el) { toast(msg); return; }
+        if (!msg) { el.hidden = true; el.textContent = ''; return; }
+        el.textContent = msg;
+        el.hidden = false;
+    }
+
     function saveUser() {
         var username = $('ufUsername').value.trim();
-        if (userEditId && isMe(userEditId) && $('ufRole').value !== 'app-admin') {
-            toast('Ne možeš sebi ukinuti administratorsku rolu.');
-            $('ufRole').value = 'app-admin';
-            return;
-        }
         var password = $('ufPassword').value;
         var name = $('ufName').value.trim();
         var email = $('ufEmail').value.trim();
         var role = $('ufRole').value;
 
-        if (!username) { toast('Upiši korisničko ime.'); return; }
-        if (!userEditId && password.length < 1) { toast('Upiši lozinku.'); return; }
+        userFormError('');
+
+        // brze provjere, iste kao Kanboardove
+        if (!username) { userFormError('Korisničko ime je obavezno.'); return; }
+        if (!userEditId && password.length < 6) {
+            userFormError('Lozinka mora imati barem 6 znakova.');
+            return;
+        }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+            userFormError('E-mail adresa nije ispravna.');
+            return;
+        }
 
         $('ufSave').disabled = true;
-        var call = userEditId
-            ? api('updateUser', { id: userEditId, username: username, name: name, email: email, role: role })
-            : api('createUser', { username: username, password: password, name: name, email: email, role: role });
 
-        call.then(function (res) {
+        fetch('user.php?action=save', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: userEditId || 0,
+                username: username,
+                password: password,
+                name: name,
+                email: email,
+                role: role
+            })
+        }).then(function (r) { return r.json(); }).then(function (j) {
             $('ufSave').disabled = false;
-            if (!res) throw new Error('Kanboard je odbio zapis (postoji li to ime već?).');
-            toast(userEditId ? 'Korisnik spremljen' : 'Korisnik stvoren');
-            resetUserForm();
-            renderUsers();
-            loadAll();
+            if (j && j.ok) {
+                toast(userEditId ? 'Korisnik spremljen' : 'Korisnik stvoren');
+                resetUserForm();
+                renderUsers();
+                loadAll();
+                return;
+            }
+            var errs = (j && j.errors) || {};
+            var first = '';
+            Object.keys(errs).forEach(function (k) { if (!first) first = errs[k]; });
+            userFormError(first || 'Kanboard nije prihvatio podatke.');
         }).catch(function (e) {
             $('ufSave').disabled = false;
-            toast('Greška: ' + (e.message || e));
+            userFormError('Greška: ' + (e && e.message ? e.message : e));
         });
     }
 
