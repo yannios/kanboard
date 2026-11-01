@@ -25,7 +25,7 @@
     var ICO_PENCIL = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m13.5 6.5 4 4"/></svg>';
     var COL_DOT = ['dot-idle', 'dot-half', 'dot-half', 'dot-done', 'dot-done'];
 
-    var state = {
+    var state = window.__state = {
         user: localStorage.getItem(LS_USER) || 'admin',
         token: localStorage.getItem(LS_TOKEN) || '',
         mode: 'session',
@@ -44,12 +44,14 @@
         calMonth: null,
         filter: { owner: 0, category: 0, priority: '', due: '' },
         selected: {},
+        subtasks: {},      // task_id -> [podzadaci], puni se lijeno
         selecting: false,
         collapsed: {},
         links: [],
         linkTypes: [],
         tlDay: 30,
         tlShift: 0,      // pomak prikaza vremenske crte u danima
+        __subBusy: false,
         aggregate: false,
         all: [],
         readonly: false
@@ -597,6 +599,49 @@
     }
 
     /* ---------------- render: list view ---------------- */
+    /* podzadaci za listu: dohvati samo one koji još nisu u cacheu,
+       najviše 4 zahtjeva paralelno (SQLite na hostingu) */
+    function fetchSubtasks(ids) {
+        var missing = ids.filter(function (id) { return !state.subtasks[id]; });
+        if (!missing.length) return Promise.resolve(false);
+
+        var i = 0, out = [];
+        function worker() {
+            if (i >= missing.length) return Promise.resolve();
+            var id = missing[i++];
+            return api('getAllSubtasks', { task_id: id })
+                .catch(function () { return []; })
+                .then(function (list) {
+                    state.subtasks[id] = list || [];
+                    out.push(id);
+                    return worker();
+                });
+        }
+        var lanes = [];
+        for (var k = 0; k < Math.min(4, missing.length); k++) lanes.push(worker());
+
+        return Promise.all(lanes).then(function () { return out.length > 0; });
+    }
+
+    function hours(sec) {
+        return (Math.round((Number(sec) / 3600) * 100) / 100).toString().replace('.', ',');
+    }
+
+    function subtaskRows(t) {
+        var list = state.subtasks[t.id];
+        if (!list || !list.length) return '';
+        return list.map(function (s) {
+            var done = Number(s.status) === 2;
+            var running = !!s.is_timer_started;
+            return '<div class="agg-row sub' + (done ? ' is-done' : '') + '" data-subtask="' + s.id + '" data-of="' + t.id + '"' +
+                ' title="Klik mijenja stanje podzadatka">' +
+                '<span class="sub-mark">' + (done ? '✓' : running ? '◐' : '○') + '</span>' +
+                '<span class="agg-title">' + esc(s.title) + '</span>' +
+                (Number(s.time_spent) > 0 ? '<span class="chip mono">' + hours(s.time_spent) + ' h</span>' : '') +
+                '</div>';
+        }).join('');
+    }
+
     function renderList() {
         // kolone se ponavljaju po stazama — uzmi svaku jednom
         var cols = [], seen = {};
@@ -626,13 +671,28 @@
                         (due ? '<span class="chip mono' + (due.overdue ? ' due-over' : due.soon ? ' due-soon' : '') + '">' +
                             ICO.due + ' ' + (t.date_due ? fmtDate(t.date_due) : due.text) + '</span>' : '') +
                         (who ? '<span class="assignee" title="' + esc(who) + '">' + initials(who) + '</span>' : '') +
-                        '</div>';
+                        '</div>' + subtaskRows(t);
                 }).join('');
         }).join('');
 
         $('listview').innerHTML = rows
             ? '<div class="agg-body" style="height:auto;max-height:none">' + rows + '</div>'
             : '<div class="empty">Nema zadataka.</div>';
+
+        // podzadaci se dohvaćaju lijeno, pa se lista jednom ponovno iscrta
+        var need = [];
+        cols.forEach(function (c) {
+            (c.tasks || []).forEach(function (t) {
+                if (t.is_active && visible(t) && Number(t.nb_subtasks) > 0) need.push(t.id);
+            });
+        });
+        if (need.length && !state.__subBusy) {
+            state.__subBusy = true;
+            fetchSubtasks(need).then(function (changed) {
+                state.__subBusy = false;
+                if (changed && state.view === 'list') renderList();
+            });
+        }
     }
 
     /* ---------------- task drawer ---------------- */
@@ -2406,6 +2466,8 @@
             $('calendar').hidden = state.view !== 'calendar';
             $('timeline').hidden = state.view !== 'timeline';
             $('overdueView').hidden = state.view !== 'backlog';
+            if (state.view === 'board') renderBoard();
+            if (state.view === 'list') renderList();      // lista se mora iscrtati pri prelasku
             if (state.view === 'calendar') renderCalendar();
             if (state.view === 'timeline') renderTimeline();
             if (state.view === 'backlog') renderOverdue();
@@ -2430,6 +2492,22 @@
             openTask(Number(card.dataset.task));
         });
         $('listview').addEventListener('click', function (e) {
+            var sub = e.target.closest('[data-subtask]');
+            if (sub) {
+                var sid = Number(sub.dataset.subtask);
+                var tid = Number(sub.dataset.of);
+                var list = state.subtasks[tid] || [];
+                var s = list.filter(function (x) { return Number(x.id) === sid; })[0];
+                if (!s) return;
+                var next = Number(s.status) === 2 ? 0 : 2;
+                s.status = next;                       // odmah u prikazu
+                sub.classList.toggle('is-done', next === 2);
+                sub.querySelector('.sub-mark').textContent = next === 2 ? '✓' : '○';
+                api('updateSubtask', { id: sid, task_id: tid, status: next })
+                    .then(function () { renderList(); renderBoard(); countMine(); })
+                    .catch(function (err) { toast('Podzadatak nije spremljen: ' + (err.message || err)); });
+                return;
+            }
             var row = e.target.closest('[data-task]');
             if (row) openTask(Number(row.dataset.task));
         });

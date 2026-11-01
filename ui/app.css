@@ -646,6 +646,23 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .agg-row .agg-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agg-row .agg-col { flex: 0 0 auto; font: 400 .72rem/1 var(--mono); color: var(--text-3); }
 
+/* podzadatak kao podređeni redak u listi: uvučen, manji, s tankom spojnicom */
+.agg-row.sub {
+    margin-left: 1.15rem;
+    padding: .25rem .7rem .25rem 1.05rem;
+    border-bottom: 0;
+    font-size: .82rem;
+    line-height: 1.25;
+    color: var(--text-2);
+    box-shadow: inset 1px 0 0 var(--border);
+}
+.agg-row.sub .sub-mark {
+    width: 1rem; flex: 0 0 auto; text-align: center;
+    color: var(--text-3); font-size: .82rem; line-height: 1;
+}
+.agg-row.sub.is-done .agg-title { color: var(--text-3); text-decoration: line-through; }
+.agg-row.sub.is-done .sub-mark { color: var(--ok); }
+
 .robar {
     padding: .4rem .8rem; font-size: .78rem;
     background: rgba(229, 72, 77, .12); color: var(--danger);
