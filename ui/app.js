@@ -15,10 +15,10 @@
     };
     var PRIORITY = ['Nizak', 'Srednji', 'Visok', 'Hitan'];
     var ICO = {
-        due: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>',
-        sub: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/></svg>',
-        cmt: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>',
-        pri: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 21V4m0 1h11l-2 4 2 4H5"/></svg>'
+        due: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>',
+        sub: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/></svg>',
+        cmt: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>',
+        pri: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 21V4m0 1h11l-2 4 2 4H5"/></svg>'
     };
 
 
@@ -165,7 +165,9 @@
     function boot() {
         applyTheme(localStorage.getItem(LS_THEME) || 'dark');
         try { state.collapsed = JSON.parse(localStorage.getItem('kbui.collapsed') || '{}') || {}; } catch (e) { state.collapsed = {}; }
-        applyFs(localStorage.getItem(LS_FS) || 'md');
+        var savedFs = localStorage.getItem(LS_FS) || 'md';
+        if (savedFs === 'sm') savedFs = 'md';      // stara vrijednost, sada ne postoji
+        applyFs(savedFs);
         $('aEndpoint').textContent = new URL(ENDPOINT, location.href).href;
         wire();
         checkSession();
@@ -203,7 +205,7 @@
         if (menu) {
             Array.prototype.forEach.call(menu.querySelectorAll('button'), function (b) {
                 b.classList.toggle('is-active', b.dataset.fs === size);
-                b.style.fontSize = { sm: '.7rem', md: '.8rem', lg: '.95rem', xl: '1.1rem' }[b.dataset.fs];
+                b.style.fontSize = { md: '.82rem', lg: '.95rem', xl: '1.08rem' }[b.dataset.fs];
             });
         }
     }
@@ -242,6 +244,7 @@
                 state.projects.filter(function (p) { return p.is_active; })[0] || state.projects[0];
             if (!state.project) throw new Error('nema aktivnih projekata');
             localStorage.setItem('kbui.project', state.project.id);
+            renderProjects();   // sada znamo koji je aktivan — označi ga u popisu
             $('projName').textContent = state.project.name;
             $('projIcon').textContent = ref(state.project).slice(0, 2).toUpperCase();
             return Promise.all([
