@@ -44,7 +44,7 @@
         calMonth: null,
         filter: { owner: 0, category: 0, priority: '', due: '' },
         selected: {},
-        subtasks: {},      // task_id -> [podzadaci], puni se lijeno
+        subCache: {},      // task_id -> [podzadaci] za listu; ne miješati sa state.subtasks (ono je otvoreni zadatak)
         selecting: false,
         collapsed: {},
         links: [],
@@ -602,7 +602,7 @@
     /* podzadaci za listu: dohvati samo one koji još nisu u cacheu,
        najviše 4 zahtjeva paralelno (SQLite na hostingu) */
     function fetchSubtasks(ids) {
-        var missing = ids.filter(function (id) { return !state.subtasks[id]; });
+        var missing = ids.filter(function (id) { return !state.subCache[id]; });
         if (!missing.length) return Promise.resolve(false);
 
         var i = 0, out = [];
@@ -612,7 +612,7 @@
             return api('getAllSubtasks', { task_id: id })
                 .catch(function () { return []; })
                 .then(function (list) {
-                    state.subtasks[id] = list || [];
+                    state.subCache[id] = list || [];
                     out.push(id);
                     return worker();
                 });
@@ -628,7 +628,7 @@
     }
 
     function subtaskRows(t) {
-        var list = state.subtasks[t.id];
+        var list = state.subCache[t.id];
         if (!list || !list.length) return '';
         return list.map(function (s) {
             var done = Number(s.status) === 2;
@@ -2496,7 +2496,7 @@
             if (sub) {
                 var sid = Number(sub.dataset.subtask);
                 var tid = Number(sub.dataset.of);
-                var list = state.subtasks[tid] || [];
+                var list = state.subCache[tid] || [];
                 var s = list.filter(function (x) { return Number(x.id) === sid; })[0];
                 if (!s) return;
                 var next = Number(s.status) === 2 ? 0 : 2;
