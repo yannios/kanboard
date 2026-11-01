@@ -50,18 +50,18 @@
   <div class="robar" id="robar" hidden>Samo gledanje — tvoja uloga na ovom projektu ne dopušta izmjene.</div>
 
   <header class="topbar">
-    <button class="icon-btn" id="menuBtn" title="Izbornik">☰</button>
+    <button class="icon-btn" id="menuBtn" title="Izbornik"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg></button>
     <div class="crumbs">
-      <span class="proj-icon" id="projIcon">◻</span>
+      <span class="proj-icon" id="projIcon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7.6A1.6 1.6 0 0 1 5.2 6h3.6l2 2.2h8A1.6 1.6 0 0 1 20.4 9.8v7.6a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z"/></svg></span>
       <strong id="projName">—</strong>
-      <button class="icon-btn sm" id="projSettingsBtn" title="Postavke projekta">⚙</button>
+      <button class="icon-btn sm" id="projSettingsBtn" title="Postavke projekta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.2 14.4a1.7 1.7 0 0 0 .4 1.9l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.3a1.9 1.9 0 1 1-3.8 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a1.9 1.9 0 1 1 0-3.8h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a1.9 1.9 0 1 1 3.8 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.3a1.9 1.9 0 1 1 0 3.8h-.2a1.7 1.7 0 0 0-1.6 1z"/></svg></button>
     </div>
     <div class="topbar-actions">
       <input class="search" id="search" type="search" placeholder="Traži…">
       <button class="chip" id="filterBtn" title="Filtriraj zadatke">Filtri<span id="filterCount"></span></button>
-      <button class="icon-btn" id="selectBtn" title="Odaberi više (masovne akcije)">▣</button>
-      <button class="icon-btn" id="sortBtn" title="Sortiraj">⇅</button>
-      <button class="icon-btn" id="printBtn" title="Ispis / PDF (Ctrl+P)">⎙</button>
+      <button class="icon-btn" id="selectBtn" title="Odaberi više (masovne akcije)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="m8 12.2 2.7 2.7L16.4 9"/></svg></button>
+      <button class="icon-btn" id="sortBtn" title="Sortiraj"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16"/><path d="m4.5 7.5 3.5-3.5 3.5 3.5"/><path d="M16 20V4"/><path d="m12.5 16.5 3.5 3.5 3.5-3.5"/></svg></button>
+      <button class="icon-btn" id="printBtn" title="Ispis / PDF (Ctrl+P)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8V4.5h10V8"/><rect x="3.5" y="8" width="17" height="8" rx="2"/><path d="M7 13h10v6.5H7z"/></svg></button>
     </div>
   </header>
 
@@ -187,15 +187,16 @@
       <div class="drawer-props">
         <div class="prop"><span>Status</span><button class="chip" id="pColumn">—</button></div>
         <div class="prop"><span>Prioritet</span><button class="chip" id="pPriority">—</button></div>
-        <div class="prop"><span>Kraj</span><span class="datefield">
-          <input type="text" id="pDue" inputmode="numeric" maxlength="10" placeholder="dd.mm.yyyy" autocomplete="off">
-          <button class="icon-btn sm" id="pDuePick" title="Odaberi iz kalendara">▦</button>
-        </span></div>
         <div class="prop"><span>Početak</span><span class="datefield">
           <input type="text" id="pStart" inputmode="numeric" maxlength="10" placeholder="dd.mm.yyyy" autocomplete="off">
-          <button class="icon-btn sm" id="pStartPick" title="Odaberi iz kalendara">▦</button>
+          <button class="icon-btn sm" id="pStartPick" title="Odaberi iz kalendara"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M3.5 10h17"/></svg></button>
         </span>
         <input type="date" id="pDateNative" class="native-date" tabindex="-1" aria-hidden="true"></div>
+
+        <div class="prop"><span>Kraj</span><span class="datefield">
+          <input type="text" id="pDue" inputmode="numeric" maxlength="10" placeholder="dd.mm.yyyy" autocomplete="off">
+          <button class="icon-btn sm" id="pDuePick" title="Odaberi iz kalendara"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M3.5 10h17"/></svg></button>
+        </span></div>
         <div class="prop"><span>Vrijeme</span><span class="timefield">
           <input type="number" id="pTimeSpent" min="0" step="0.25" placeholder="0" title="Potrošeno (sati)">
           <span class="sep">/</span>

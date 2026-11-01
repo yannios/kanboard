@@ -22,7 +22,8 @@
     };
 
 
-    var COL_ICON = ['○', '◐', '◑', '●', '◕'];
+    var ICO_PENCIL = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m13.5 6.5 4 4"/></svg>';
+    var COL_DOT = ['dot-idle', 'dot-half', 'dot-half', 'dot-done', 'dot-done'];
 
     var state = {
         user: localStorage.getItem(LS_USER) || 'admin',
@@ -30,6 +31,7 @@
         mode: 'session',
         projects: [],
         project: null,
+        mine: false,
         board: [],            // swimlanes → columns → tasks
         users: [],
         categories: [],
@@ -224,6 +226,9 @@
     }
 
     function loadAll() {
+        // filtri vrijede za jedan projekt i pale se isključivo ručno
+        state.filter = { owner: 0, category: 0, priority: '', due: '' };
+        state.mine = false;
         board.innerHTML = '<div class="col"><div class="empty">Učitavam…</div></div>';
         return api('getVersion').then(function (v) {
             // git checkout prijavljuje "main.<hash>" — prikaži čitljivu verziju
@@ -274,6 +279,14 @@
                 });
             });
             probePermission(firstTasks);
+            // broj u "Svi zadaci" mora biti točan i prije prvog klika: dohvati u pozadini
+            if (!state.all || !state.all.length) {
+                loadAggregate().then(function () {
+                    $('allCount').textContent = state.all.length;
+                }).catch(function () {});
+            } else {
+                $('allCount').textContent = state.all.length;
+            }
             var t = localStorage.getItem('kbui.task');
             if (t) openTask(Number(t), true);
         }).catch(function (e) {
@@ -355,16 +368,17 @@
 
     function countMine() {
         var n = 0;
-        allTasks().forEach(function (t) { if (t.owner_id) n++; });
+        var me = state.me && state.me.id;
+        allTasks().forEach(function (t) { if (me && t.owner_id === me) n++; });
         $('mineCount').textContent = n;
     }
 
     function allTasks() {
-        var out = [];
+        var out = [], seen = {};
         state.board.forEach(function (sw) {
             (sw.columns || []).forEach(function (c) {
                 (c.tasks || []).forEach(function (t) {
-                    if (t.is_active) out.push(t);
+                    if (t.is_active && !seen[t.id]) { seen[t.id] = 1; out.push(t); }
                 });
             });
         });
@@ -429,6 +443,7 @@
     }
 
     function visible(t) {
+        if (state.mine && t.owner_id !== (state.me && state.me.id)) return false;
         var f = state.filter;
         if (f.owner && t.owner_id !== f.owner) return false;
         if (f.category && t.category_id !== f.category) return false;
@@ -545,7 +560,7 @@
             var over = c.task_limit && tasks.length > c.task_limit;
             html += '<section class="col" data-swimlane="' + sw.id + '" data-column="' + c.id + '">' +
                 '<header class="col-head">' +
-                '<span class="col-dot">' + (COL_ICON[(baseIndex + i) % COL_ICON.length]) + '</span>' +
+                '<span class="col-dot ' + (i === (sw.columns || []).length - 1 ? 'dot-done' : COL_DOT[(baseIndex + i) % COL_DOT.length]) + '"></span>' +
                 '<span class="col-title">' + esc(c.title) + '</span>' +
                 '<span class="col-num"' + (over ? ' style="color:var(--danger)" title="Preko limita kolone"' : '') + '>' + tasks.length + '</span>' +
                 '<button class="icon-btn sm" data-add="' + c.id + '" title="Novi zadatak">+</button>' +
@@ -707,7 +722,7 @@
                 '<div class="body"><div class="who">' + esc(c.name || c.username || 'korisnik') +
                 ' · ' + fmtDateTime(c.date_creation) +
                 (mine ? '<span class="cbtns">' +
-                    '<button class="icon-btn sm" data-cedit="' + c.id + '" title="Uredi komentar">✎</button>' +
+                    '<button class="icon-btn sm" data-cedit="' + c.id + '" title="Uredi komentar">' + ICO_PENCIL + '</button>' +
                     '<button class="icon-btn sm" data-cdel="' + c.id + '" title="Obriši komentar">✕</button>' +
                     '</span>' : '') +
                 '</div>' +
@@ -1104,7 +1119,7 @@
                     (u.name && u.name !== u.username ? ' <span class="pm-meta">@' + esc(u.username) + '</span>' : '') + '</span>' +
                     '<span class="chip">' + (u.role === 'app-admin' ? 'Administrator' : 'Korisnik') + '</span>' +
                     (active ? '' : '<span class="chip">neaktivan</span>') +
-                    '<button class="icon-btn sm" data-uact="edit" title="Uredi">✎</button>' +
+                    '<button class="icon-btn sm" data-uact="edit" title="Uredi">' + ICO_PENCIL + '</button>' +
                     '<button class="icon-btn sm" data-uact="toggle" title="' + (active ? 'Onemogući' : 'Omogući') + '">' +
                     (active ? '⏸' : '▶') + '</button>' +
                     '<button class="icon-btn sm" data-uact="del" title="Obriši">✕</button>' +
@@ -1386,7 +1401,7 @@
                         '<span class="pm-meta">' + (c.nb_tasks || 0) + ' zad.</span>' +
                         '<button class="icon-btn sm" data-act="colup" title="Pomakni lijevo"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
                         '<button class="icon-btn sm" data-act="coldown" title="Pomakni desno"' + (i === state.pmCols.length - 1 ? ' disabled' : '') + '>↓</button>' +
-                        '<button class="icon-btn sm" data-act="coledit" title="Preimenuj">✎</button>' +
+                        '<button class="icon-btn sm" data-act="coledit" title="Preimenuj">' + ICO_PENCIL + '</button>' +
                         '<button class="icon-btn sm" data-act="coldel" title="Obriši kolonu">✕</button>' +
                         '</div>';
                 }).join('') + '<div class="pm-add"><input id="pmColName" placeholder="nova kolona…"><button class="btn primary" data-act="coladd">Dodaj</button></div>' +
@@ -1402,7 +1417,7 @@
                     return '<div class="pm-row" data-cat="' + c.id + '">' +
                         '<span class="dot" style="background:' + (COLOR_HEX[c.color_id] || 'var(--text-3)') + '"></span>' +
                         '<span class="pm-name">' + esc(c.name) + '</span>' +
-                        '<button class="icon-btn sm" data-act="catedit" title="Preimenuj">✎</button>' +
+                        '<button class="icon-btn sm" data-act="catedit" title="Preimenuj">' + ICO_PENCIL + '</button>' +
                         '<button class="icon-btn sm" data-act="catdel" title="Obriši">✕</button>' +
                         '</div>';
                 }).join('') || '<div class="pm-note">Nema kategorija.</div>') +
@@ -1416,7 +1431,7 @@
                 host.innerHTML = ((lanes || []).map(function (s) {
                     return '<div class="pm-row" data-lane="' + s.id + '">' +
                         '<span class="pm-name">' + esc(s.name) + '</span>' +
-                        '<button class="icon-btn sm" data-act="laneedit" title="Preimenuj">✎</button>' +
+                        '<button class="icon-btn sm" data-act="laneedit" title="Preimenuj">' + ICO_PENCIL + '</button>' +
                         '<button class="icon-btn sm" data-act="lanedel" title="Obriši">✕</button>' +
                         '</div>';
                 }).join('') || '<div class="pm-note">Nema faza.</div>') +
@@ -2330,7 +2345,7 @@
 
             if (nav === 'home') {
                 showHome(true);
-                state.filter = { owner: 0, category: 0, priority: '', due: '' };
+                state.mine = false;
                 state.search = ''; $('search').value = '';
                 return;
             }
@@ -2349,9 +2364,10 @@
                 applyFilters();
             } else if (nav === 'board') {
                 state.view = 'board';
+                state.mine = false;
                 applyFilters();
             } else if (nav === 'mine') {
-                state.filter = { owner: (state.me && state.me.id) || 1, category: 0, priority: '', due: '' };
+                state.mine = true;
                 applyFilters();
                 toast('Prikazujem samo tvoje zadatke');
             } else if (nav === 'members') {

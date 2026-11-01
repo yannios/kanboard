@@ -13,13 +13,14 @@
 }
 
 /* ---------- font scale ---------- */
-html { font-size: 16px; }
+html { font-size: 16px; color-scheme: light; }
 html[data-fs="md"] { font-size: 16px; }
 html[data-fs="lg"] { font-size: 17.5px; }
 html[data-fs="xl"] { font-size: 19px; }
 
 /* ---------- tokens ---------- */
 html[data-theme="dark"] {
+    color-scheme: dark;
     --bg: #0a0a0c;
     --surface: #121214;
     --surface-2: #17171a;
@@ -40,6 +41,7 @@ html[data-theme="dark"] {
 }
 
 html[data-theme="light"] {
+    color-scheme: light;
     --bg: #fbfbf9;
     --surface: #ffffff;
     --surface-2: #f4f4f1;
@@ -111,6 +113,9 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .icon-btn:hover { background: var(--surface-2); color: var(--text); }
 .icon-btn.sm { width: 1.95rem; height: 1.95rem; font-size: 1.02rem; }
 .icon-btn { font-size: 1.1rem; }
+.icon-btn svg { width: 1.15rem; height: 1.15rem; display: block; }
+.icon-btn.sm svg { width: 1.02rem; height: 1.02rem; }
+.proj-icon svg { width: 1.05rem; height: 1.05rem; display: block; }
 
 .btn {
     min-height: var(--ctl); padding: 0 .8rem;
@@ -281,7 +286,17 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .col.drag-over { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: -2px; }
 .col.drag-over .cards { background: transparent; }
 .col-head { display: flex; align-items: center; gap: .5rem; padding: .1rem .1rem .6rem; }
-.col-dot { color: var(--text-3); font-size: .8rem; width: .9rem; text-align: center; }
+.col-dot {
+    width: .6rem; height: .6rem; border-radius: 50%;
+    border: 1.6px solid var(--text-3); background: transparent;
+    flex: 0 0 auto; box-sizing: border-box;
+}
+.col-dot.dot-half {
+    border-color: #d9a13b;
+    background: linear-gradient(90deg, #d9a13b 0 50%, transparent 50% 100%);
+}
+.col-dot.dot-done { border-color: var(--ok); background: var(--ok); }
+.col-dot { flex: 0 0 auto; }
 .col-title { font-size: .9rem; font-weight: 500; color: var(--text-2); }
 .col-num { font: 400 .8rem/1 var(--mono); color: var(--text-3); }
 .col-head .icon-btn { margin-left: auto; }
