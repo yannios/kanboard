@@ -1,5 +1,5 @@
 *
 !/.gitignore
 # our own design layer is part of this fork (the rest still stays user data)
-!UiPolish/
-!UiPolish/**
+!YanNixTheme/
+!YanNixTheme/**

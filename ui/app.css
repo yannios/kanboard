@@ -297,7 +297,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 }
 .col-dot.dot-done { border-color: var(--ok); background: var(--ok); }
 .col-dot { flex: 0 0 auto; }
-.col-title { font-size: .9rem; font-weight: 500; color: var(--text-2); }
+.col-title { font-size: .9rem; font-weight: 700; color: var(--text-2); border: 0; }
 .col-num { font: 400 .8rem/1 var(--mono); color: var(--text-3); }
 .col-head .icon-btn { margin-left: auto; }
 

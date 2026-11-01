@@ -1,5 +1,5 @@
 /*!
- * UiPolish — "Hermes" look for Kanboard
+ * YanNix Theme — a modern, flat skin for Kanboard
  * -----------------------------------------------------------------
  * Palette lifted from Hermes Agent's own default skin
  * (hermes_cli/skin_engine.py → _BUILTIN_SKINS["default"]):
@@ -61,15 +61,15 @@ html:root {
     --warn: #d97706;
     --success: #2e7d32;
 
-    --radius-xs: 2px;
-    --radius-sm: 3px;
-    --radius: 4px;
-    --radius-card: 5px;
-    --radius-lg: 7px;
+    --radius-xs: 4px;
+    --radius-sm: 5px;
+    --radius: 6px;
+    --radius-card: 6px;
+    --radius-lg: 8px;
     --radius-pill: 9999px;
 
-    --shadow-xs: 0 1px 2px rgba(74, 58, 20, .05);
-    --shadow-sm: 0 1px 2px rgba(74, 58, 20, .07);
+    --shadow-xs: none;
+    --shadow-sm: none;
     --shadow-md: 0 4px 12px rgba(74, 58, 20, .09);
     --shadow-lg: 0 8px 24px rgba(74, 58, 20, .14);
     --shadow-xl: 0 16px 48px rgba(74, 58, 20, .2);
@@ -127,7 +127,7 @@ html.theme-dark {
 
 html body {
     font-family: var(--font-sans);
-    font-size: 14px;
+    font-size: 16.5px;
     line-height: 1.5;
     color: var(--text);
     background: var(--page);
@@ -191,9 +191,8 @@ html body .page-header {
     margin-bottom: 16px;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-left: 3px solid var(--brand);
     border-radius: var(--radius-card);
-    box-shadow: var(--shadow-xs);
+    box-shadow: none;
     position: sticky;
     top: 0;
     z-index: 20;
@@ -225,7 +224,7 @@ html body .sidebar-container {
 }
 
 html body .sidebar-title {
-    font-size: .6875rem;
+    font-size: .75rem;
     font-weight: 590;
     letter-spacing: .05em;
     text-transform: uppercase;
@@ -388,7 +387,7 @@ html body .table-list-row:last-child { border-bottom: 0; }
 html body .table-list-row:hover { background: var(--surface-2); }
 
 html body .table-list-title { font-size: .875rem; font-weight: 510; letter-spacing: -.006em; }
-html body .table-list-details { font-size: .8125rem; color: var(--text-3); }
+html body .table-list-details { font-size: .875rem; color: var(--text-3); }
 
 html body table.table-striped th,
 html body .table-small th {
@@ -724,12 +723,10 @@ html body .sidebar-title::before {
     vertical-align: middle;
 }
 
-/* ┊ separator before sidebar list items (Hermes' tool prefix) */
+/* the "┊" prefix in front of every sidebar row is gone: the row itself carries
+   the state (shading), so no vertical marker is needed */
 html body .sidebar ul li a:not(:has(i))::before {
-    content: "┊";
-    color: var(--text-4);
-    margin-right: 7px;
-    font-weight: 400;
+    content: none;
 }
 
 /* ❯ chevron slides in on dropdown hover — Hermes' menu affordance */
@@ -743,11 +740,11 @@ html body .dropdown-menu a::after {
 }
 html body .dropdown-menu a:hover::after { opacity: 1; }
 
-/* active sidebar item gets a gold rail, like Hermes' status bar segment */
+/* active sidebar item: shading only, no left rail */
 html body .sidebar a.active,
 html body .sidebar li.active > a {
-    box-shadow: inset 2px 0 0 0 var(--brand);
-    border-radius: 0 var(--radius) var(--radius) 0;
+    box-shadow: none;
+    border-radius: var(--radius);
 }
 
 /* counts, ids and timestamps in mono with the dim gold of the status bar */
@@ -1215,3 +1212,192 @@ html body .task-board .task-board-icons span[title*="P"] {
 /* the project header strip gets the skin's gold response border */
 html body .project-header,
 html body .project-overview { border-radius: var(--radius-card); }
+
+/* ============================================================
+   25. SIDEBAR — NO LEFT BARS, ONLY SHADING
+   Kanboard's own sidebar.css puts a 5px bar on the left of hovered
+   and active items (`border-left: 5px solid #555`) plus a dotted
+   separator under each row. Both are gone; state is shading only.
+   ============================================================ */
+
+html body .sidebar > ul li,
+html body .sidebar > ul li:hover,
+html body .sidebar > ul li.active {
+    border: 0 !important;
+    border-left: 0 !important;
+    border-bottom: 0 !important;
+    padding-left: 0 !important;
+    margin: 2px 0;
+    line-height: 1.4;
+    border-radius: var(--radius);
+    transition: background var(--transition);
+}
+
+html body .sidebar > ul li a {
+    display: block;
+    padding: 8px 11px;
+    border-radius: var(--radius);
+    font-size: .9375rem;
+    font-weight: 510;
+    color: var(--text-2);
+    letter-spacing: -.006em;
+}
+
+html body .sidebar > ul li:hover { background: var(--surface-2); }
+html body .sidebar > ul li:hover a { color: var(--text); }
+html body .sidebar > ul li.active { background: var(--brand-soft); }
+html body .sidebar > ul li.active a { color: var(--brand-hover); font-weight: 590; }
+html body .sidebar > ul li:last-child { margin-bottom: 0; }
+
+/* ============================================================
+   26. BOXES — ONE LIGHT BORDER, SMALL RADIUS, NO SHADOW
+   Same language as the new ui/: a single hairline, 6px corners.
+   ============================================================ */
+
+html body .project-overview-column {
+    border: 1px solid var(--line) !important;
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 9px 14px;
+    box-shadow: none;
+}
+
+html body .table-list,
+html body .table-list-header {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: none;
+}
+
+html body .table-list { overflow: hidden; }
+html body .table-list-header {
+    border: 0 !important;
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+/* Kanboard daje svakom redu svoj okvir (border: 1px) pa se u tablici vide dva;
+   ovdje je jedini okvir vanjski, a redovi su odvojeni samo tankom linijom */
+html body .table-list-row {
+    border: 0 !important;
+    border-bottom: 1px solid var(--line) !important;
+    box-shadow: none !important;
+}
+html body .table-list-row:last-child { border-bottom: 0 !important; }
+html body .table-list tbody tr,
+html body .table-list tbody td,
+html body .table-list tbody th { border-left: 0 !important; border-right: 0 !important; }
+
+html body .btn,
+html body .btn-sort,
+html body .sort,
+html body select,
+html body input[type="text"],
+html body input[type="password"],
+html body input[type="email"],
+html body input[type="number"],
+html body textarea {
+    border-radius: var(--radius);
+    box-shadow: none;
+}
+
+html body .menus-container,
+html body .menu-inline { border: 0; box-shadow: none; }
+
+/* kartice projekata na dashboardu: gust, uredan redak */
+html body .project-overview-column small { font-size: .8125rem; }
+html body .project-overview-column strong { font-size: .9375rem; font-weight: 590; }
+
+/* ============================================================
+   27. NO SHADOWS
+   Flat surfaces only: every box-shadow is dropped, including the
+   card, dropdown and tooltip ones. Focus is kept visible through an
+   outline instead of a shadow ring.
+   ============================================================ */
+
+html body *,
+html body *::before,
+html body *::after {
+    box-shadow: none !important;
+}
+
+html body input:focus,
+html body select:focus,
+html body textarea:focus,
+html body input[type="text"]:focus,
+html body .form-login input:focus,
+html body :focus-visible {
+    outline: 2px solid var(--ring) !important;
+    outline-offset: 1px;
+}
+
+/* ============================================================
+   28. STRAY BORDERS + SMALL TYPE (found on the live dashboard)
+   Kanboard puts a 1px frame on a.dropdown-menu (the "#2" chip), on
+   .avatar-letter and a colored .table-border-left rail on rows; on top
+   of the table's own frame that reads as a box inside a box.
+   ============================================================ */
+
+html body a.dropdown-menu,
+html body .dropdown-menu-link-icon,
+html body .avatar-letter,
+html body .avatar,
+html body .table-border-left,
+html body .table-list-row.table-border-left {
+    border: 0 !important;
+    border-left: 0 !important;
+    box-shadow: none !important;
+}
+
+html body .table-list-details small { font-size: 14px; }
+html body .table-list-header-count { font-size: 14px; font-weight: 700; }
+html body .table-list-details { font-size: 14px; }
+
+/* ============================================================
+   29. TYPE SCALE + CHIP POLISH (Jogi's Stylebot findings)
+   Adopted verbatim so the same numbers live in the theme, not in a
+   browser extension. Accent uses var(--brand) instead of the hex.
+   ============================================================ */
+
+html body span.col-title {
+    font-weight: 700;
+    border: 0 !important;
+}
+
+html body div.table-list-details small { font-size: 14px; }
+
+html body a.dropdown-menu {
+    border: 0 !important;
+    border-radius: var(--radius);
+    padding: 0;
+}
+
+html body div.avatar-letter {
+    border: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+    line-height: 20px !important;
+    font-size: 14px !important;
+}
+
+html body div.table-list-header-count {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+html body div.page-header {
+    border: 0 !important;
+    font-size: 16px;
+}
+
+html body div.page-header h2 { font-size: 16px; }
+
+html body span.table-list-title a { font-size: 16px; }
+
+html body a.dropdown-menu strong {
+    font-size: 16px;
+    font-weight: 700;
+    border: 1px solid var(--brand) !important;
+    border-radius: var(--radius);
+    padding: 5px;
+}
+
+html body a.dropdown-menu-link-icon strong { font-size: 14px; }
