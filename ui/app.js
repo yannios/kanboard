@@ -349,7 +349,7 @@
             var on = state.project && p.id === state.project.id ? ' is-active' : '';
             var arch = p.is_active ? '' : ' <span class="pm-meta">arhiva</span>';
             return '<button class="nav-item' + on + '" data-project="' + p.id + '">' +
-                '<span class="ni">◻</span> ' + esc(p.name) + arch + '</button>';
+                '<span class="ni"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 7.6A1.6 1.6 0 0 1 5.2 6h3.6l2 2.2h8A1.6 1.6 0 0 1 20.4 9.8v7.6a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6z"/></svg></span> ' + esc(p.name) + arch + '</button>';
         }).join('') || '<div class="empty">Nema projekata</div>';
     }
 
