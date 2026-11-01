@@ -695,6 +695,7 @@ body.is-readonly #dCommentSend { display: none !important; }
 .tl-bar:hover { opacity: 1; }
 .tl-bar.is-overdue { outline: 1px solid var(--danger); }
 .tl-today { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); opacity: .85; pointer-events: none; }
+.tl-nodate { position: absolute; left: .5rem; top: .45rem; font: 400 .7rem/1 var(--mono); color: var(--text-3); }
 .tl-empty { padding: 1.2rem .8rem; color: var(--text-3); font-size: .85rem; }
 
 @media (max-width: 860px) {

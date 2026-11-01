@@ -1822,8 +1822,8 @@
         var host = $('tlScroll');
         var list = allTasks().filter(visible);
         var dated = list.filter(function (t) { return t.date_due; });
-        if (!dated.length) {
-            host.innerHTML = '<div class="tl-empty">Nema zadataka s rokom u ovom projektu (ili ih filtri skrivaju).</div>';
+        if (!list.length) {
+            host.innerHTML = '<div class="tl-empty">Nema zadataka za ovaj filtar.</div>';
             $('tlRange').textContent = '';
             return;
         }
@@ -1837,6 +1837,7 @@
             if (max === null || e > max) max = e;
         });
         var today = dayKey(new Date());
+        if (min === null) { min = today - 7 * 86400000; max = today + 21 * 86400000; }
         if (today < min) min = today;
         if (today > max) max = today;
         // pad to whole weeks
@@ -1869,16 +1870,43 @@
             return '<div class="tl-month" style="width:' + (m.n * W) + 'px">' + esc(m.label) + '</div>';
         }).join('');
 
-        var groups = [];
+        // kolone se ponavljaju u svakoj stazi — grupiraj po jedinstvenom column_id
+        var byCol = {}, colOrder = [];
         state.board.forEach(function (sw) {
             (sw.columns || []).forEach(function (c) {
-                var tasks = dated.filter(function (t) { return t.column_id === c.id; });
-                if (tasks.length) groups.push({ title: c.title, tasks: sortTasks(tasks) });
+                if (!byCol[c.id]) {
+                    byCol[c.id] = { title: c.title, tasks: [], lane: (state.board.length > 1 ? sw.name : '') };
+                    colOrder.push(c.id);
+                }
             });
         });
 
+        var groups = [];
+        colOrder.forEach(function (cid) {
+            var g = byCol[cid];
+            var tasks = dated.filter(function (t) { return Number(t.column_id) === Number(cid); });
+            if (tasks.length) {
+                groups.push({
+                    title: g.title + (g.lane && state.board.length > 1 ? ' · ' + g.lane : ''),
+                    tasks: sortTasks(tasks)
+                });
+            }
+        });
+
+        // zadaci bez roka: popis na dnu, bez trake
+        var undated = list.filter(function (t) { return !t.date_due; });
+        if (undated.length) groups.push({ title: 'Bez roka', tasks: sortTasks(undated), plain: true });
+
         var rowsHTML = groups.map(function (g) {
             return '<div class="tl-group-head">' + esc(g.title) + '</div>' + g.tasks.map(function (t) {
+                if (g.plain) {
+                    return '<div class="tl-row">' +
+                        '<div class="tl-label" data-task="' + t.id + '">' +
+                        '<span class="lref">' + esc(ref(state.project) + '-' + t.id) + '</span>' +
+                        '<span>' + esc(t.title) + '</span></div>' +
+                        '<div class="tl-track" style="width:' + totalW + 'px">' +
+                        '<span class="tl-nodate">bez roka</span></div></div>';
+                }
                 var s = dayKey(new Date(((t.date_started || t.date_creation) * 1000)));
                 var e = dayKey(new Date(t.date_due * 1000));
                 if (e < s) e = s;
